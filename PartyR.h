@@ -1,0 +1,50 @@
+//
+// Created by meital on 10/01/18.
+//
+
+#ifndef PSI_PARTYR_H
+#define PSI_PARTYR_H
+
+#include "../../include/interactive_mid_protocols/OTExtensionBristol.hpp"
+#include "../../include/primitives/Mersenne.hpp"
+#include "../../include/primitives/PrfOpenSSL.hpp"
+
+
+
+class PartyR {
+
+    boost::asio::io_service io_service;
+    shared_ptr<CommParty> channel;			//The channel between both parties.
+
+    vector<ZpMersenneLongElement> inputs;//the elements to check the intersection
+    int numOfItems;//the size of the set
+
+    vector<byte> T;//the first array for the input of the ot's
+    vector<byte> U;//the second array for the input of the ot's
+    OTBatchSender * otSender;			//The OT object that used in the protocol.
+
+    vector<OpenSSLAES> aesTArr;
+    vector<OpenSSLAES> aesUArr;
+
+
+public:
+    PartyR(int numOfItems);
+
+    void runProtocol();
+
+    void runOT();
+
+    void buildPolinomial();
+
+    void sendCoeffs();
+
+    void recieveHashValues();
+
+    void calcOutput();
+
+
+
+};
+
+
+#endif //PSI_PARTYR_H
