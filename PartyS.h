@@ -7,11 +7,13 @@
 
 #include "../../include/interactive_mid_protocols/OTExtensionBristol.hpp"
 #include "../../include/primitives/Mersenne.hpp"
+#include "../../include/primitives/PrfOpenSSL.hpp"
 
 class PartyS {
 
     boost::asio::io_service io_service;
     shared_ptr<CommParty> channel;				//The channel between both parties.
+    TemplateField<ZpMersenneLongElement> *field;
 
     vector<ZpMersenneLongElement> inputs;//the elements to check the intersection
     int numOfItems;//the size of the set
@@ -19,6 +21,9 @@ class PartyS {
     vector<byte> s;//the random bits for the ot's
     vector<byte> Q;//the results for the ot's
     OTBatchReceiver * otReceiver;			//The OT object that used in the protocol.
+    vector<OpenSSLAES> aesQArr;
+    vector<ZpMersenneLongElement> xArr;
+    vector<ZpMersenneLongElement> yArr;
 
 public:
     PartyS(int numOfItems);
@@ -36,6 +41,8 @@ private:
     void recieveCoeffs();
 
     void sendHashValues();
+
+    void setAllKeys();
 
 
 

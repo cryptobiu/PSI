@@ -17,6 +17,9 @@ class PartyR {
     shared_ptr<CommParty> channel;			//The channel between both parties.
 
     vector<ZpMersenneLongElement> inputs;//the elements to check the intersection
+    //vector<byte> inputsAsBytesArr;//the elements to check the intersection
+    TemplateField<ZpMersenneLongElement> *field;
+
     int numOfItems;//the size of the set
 
     vector<byte> T;//the first array for the input of the ot's
@@ -25,6 +28,10 @@ class PartyR {
 
     vector<OpenSSLAES> aesTArr;
     vector<OpenSSLAES> aesUArr;
+    int buildIndex;
+    vector<ZpMersenneLongElement> xArr;
+    vector<ZpMersenneLongElement> yArr;
+
 
 
 public:
@@ -43,7 +50,9 @@ public:
     void calcOutput();
 
 
+    void setAllKeys();
 
+    void setInputsToByteVector(int offset, int numOfItemsToConvert,vector<byte> & inputsAsBytesArr);
 };
 
 

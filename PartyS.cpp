@@ -6,6 +6,7 @@
 
 #include <boost/thread/thread.hpp>
 #include "../../include/comm/Comm.hpp"
+#include "Defines.h"
 
 
 PartyS::PartyS(int numOfItems): numOfItems(numOfItems){
@@ -32,7 +33,16 @@ PartyS::PartyS(int numOfItems): numOfItems(numOfItems){
 
 
 
-    //init the ot
+    //init the aes array
+    aesQArr.resize(SIZE_OF_NEEDED_BITS);
+
+    for(int i=0; i<SIZE_OF_NEEDED_BITS; i++){
+
+        aesQArr[i] = OpenSSLAES();
+    }
+
+
+
 
 
 }
@@ -70,13 +80,24 @@ void PartyS::chooseS(int size){
 
 }
 
+void PartyS::setAllKeys(){
+    SecretKey key;
+    //first set all the aes keys
+    for(int i; i < aesQArr.size(); i++)
+    {
+        key = SecretKey(Q.data() + 16 * i, 128, "aes");
+        aesQArr[i].setKey(key);
+
+    }
+}
 
 void PartyS::runOT() {
 
 
     //Create an OT input object with the given sigmaArr.
-    int elementSize = 128;
-    int nOTs = 256;
+    int elementSize = AES_LENGTH;
+    int nOTs = SIZE_OF_NEEDED_BITS;
+
     OTBatchRInput * input = new OTExtensionRandomizedRInput(s, elementSize);
 
     for(int i=0; i<nOTs; i++)
