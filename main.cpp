@@ -9,11 +9,11 @@ int main(int argc, char* argv[]) {
 
     if (partyNum == 0) {
         // create Party one with the previous created objects.
-        PartyR pR(6);
+        PartyR pR(20);
         pR.runProtocol();
     }
     else if (partyNum == 1) {
-        PartyS pS(6);
+        PartyS pS(20);
         pS.runProtocol();
     }
 

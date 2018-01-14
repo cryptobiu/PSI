@@ -4,6 +4,7 @@
 
 #include "PartyR.h"
 #include "Defines.h"
+#include "Poly.h"
 
 PartyR::PartyR(int numOfItems): numOfItems(numOfItems) {
 
@@ -25,21 +26,19 @@ PartyR::PartyR(int numOfItems): numOfItems(numOfItems) {
 
     field = new TemplateField<ZpMersenneLongElement>(0);
 
-    //init the aes array
-    aesTArr.resize(SIZE_OF_NEEDED_BITS);
-    aesUArr.resize(SIZE_OF_NEEDED_BITS);
-
     //inputsAsBytesArr.resize(numOfItems*AES_LENGTH/8);
 
     //----------GET FROM FILE
     inputs.resize(numOfItems);
 
-
-    for(int i=0; i<SIZE_OF_NEEDED_BITS; i++){
-
-        aesTArr[i] = OpenSSLAES();
-        aesTArr[i] = OpenSSLAES();
+    for(int i=0; i<numOfItems; i++){
+        inputs[i] = 2*i;
     }
+    yArr.resize(numOfItems);
+
+    tRows.resize(numOfItems);
+    uRows.resize(numOfItems);
+    zRows.resize(numOfItems);
 
 }
 
@@ -48,6 +47,9 @@ void PartyR::runProtocol(){
 
     runOT();
     buildPolinomial();
+    sendCoeffs();
+    recieveHashValues();
+    calcOutput();
 }
 
 void PartyR::runOT(){
@@ -90,31 +92,41 @@ void PartyR::runOT(){
 
 void PartyR::buildPolinomial(){
 
-
-    setAllKeys();
-
     auto fieldSize = field->getElementSizeInBits();
 
     //build the rows ti and ui
-    vector<unsigned long>tRows(numOfItems);
-    vector<unsigned long>uRows(numOfItems);
+
     vector<vector<byte>>tbitArr(fieldSize);
     vector<vector<byte>>ubitArr(fieldSize);
 
     for(int i=0; i<field->getElementSizeInBits(); i++){
-        tbitArr[i].resize(aesTArr[0].getBlockSize()*numOfItems);
-        ubitArr[i].resize(aesTArr[0].getBlockSize()*numOfItems);
+        tbitArr[i].resize(16*numOfItems);
+        ubitArr[i].resize(16*numOfItems);
     }
 
 
     vector<byte> partialInputsAsBytesArr(numOfItems*16);
     setInputsToByteVector(0, numOfItems, partialInputsAsBytesArr);
     //NOTE-----------change to param of the underlying field
+    OpenSSLAES aes;
+    SecretKey key;
+
     for(int i=0; i<field->getElementSizeInBits(); i++){
 
+        key = SecretKey(T.data() + 16 * i, 16, "aes");
+        aes.setKey(key);
 
-        aesTArr[i].optimizedCompute(partialInputsAsBytesArr, tbitArr[i]);
-        aesUArr[i].optimizedCompute(partialInputsAsBytesArr, ubitArr[i]);
+        aes.optimizedCompute(partialInputsAsBytesArr, tbitArr[i]);
+
+        //aesTArr[i].optimizedCompute(partialInputsAsBytesArr, tbitArr[i]);
+        //aesUArr[i].optimizedCompute(partialInputsAsBytesArr, ubitArr[i]);
+
+        key = SecretKey(U.data() + 16 * i, 16, "aes");
+        aes.setKey(key);
+
+        aes.optimizedCompute(partialInputsAsBytesArr, ubitArr[i]);
+
+
 
     }
 
@@ -122,7 +134,7 @@ void PartyR::buildPolinomial(){
 
     //extract each bit to get the entire row of bits
     unsigned long temp = 0;
-    for(int i; i<numOfItems;i++){
+    for(int i=0; i<numOfItems;i++){
 
         //init the value
         tRows[i] = 0;
@@ -133,19 +145,24 @@ void PartyR::buildPolinomial(){
             temp = tbitArr[j][i*16] & 1;
 
             //get the bit in the right position
-            tRows[i] += temp<<j;
+            tRows[i] += (temp<<j);
 
 
             //get first byte from the entires encryption
             temp = ubitArr[j][i*16] & 1;
 
             //get the bit in the right position
-            uRows[i] += temp<<j;
+            uRows[i] += (temp<<j);
 
 
         }
+
+        yArr[i].elem =  (tRows[i] ^ uRows[i]);
     }
 
+
+    //interpolate on input,y cordinates
+    Poly::interpolateMersenne(polyP, inputs, yArr);
 
 }
 
@@ -159,27 +176,47 @@ void PartyR::setInputsToByteVector(int offset, int numOfItemsToConvert, vector<b
 
 }
 
-void PartyR::setAllKeys(){
-    SecretKey key;
-    //first set all the aes keys
-    for(int i; i < aesTArr.size(); i++)
-    {
-        key = SecretKey(T.data() + 16 * i, 128, "aes");
-        aesTArr[i].setKey(key);
-
-        key = SecretKey(U.data() + 16 * i, 128, "aes");
-        aesUArr[i].setKey(key);
-    }
-}
 
 void PartyR::sendCoeffs(){
+
+    cout<<"sendCoeffs "<<endl;
+    //get the bytes representation of the mersenne elements
+    //field->elementVectorToByteVector(polyP,)
+
+    cout<<"polyP size is " <<polyP.size()<<endl;
+
+    channel->write((byte*) polyP.data(), polyP.size()*field->getElementSizeInBytes());
+
+
+
 
 }
 
 void PartyR::recieveHashValues(){
 
+    cout<<"recieveHashValues "<<endl;
+    channel->read((byte*)zRows.data(), zRows.size()*8);
+
 }
 
 void PartyR::calcOutput(){
+
+
+    //NOTE use map instead of vectors
+
+    //check if there are values equal
+
+
+    cout<<"calc output "<<endl;
+    for(int i=0; i<zRows.size(); i++){
+
+        for(int j=0; j<tRows.size(); j++){
+
+            if( zRows[i]==tRows[j]){
+
+                cout<<"found a match for index "<< i << "and index "<<j<<endl;
+            }
+        }
+    }
 
 }

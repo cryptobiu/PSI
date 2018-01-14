@@ -6,7 +6,7 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g -std=c++14 -maes -mavx -mpclmul -mbmi
 INCLUDE_DIRECTORIES( $ENV{HOME} $ENV{HOME}/libscapi/install/include
         $ENV{HOME}/libscapi/lib/OTExtensionBristol)
 
-set(SOURCE_FILES main.cpp PartyR.cpp PartyS.cpp PartyS.h PartyR.h Defines.h)
+set(SOURCE_FILES main.cpp PartyR.cpp PartyS.cpp PartyS.h PartyR.h Defines.h Poly.cpp Poly.h)
 
 
 link_directories($ENV{HOME}/libscapi/install/lib)

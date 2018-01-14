@@ -17,6 +17,8 @@ class PartyR {
     shared_ptr<CommParty> channel;			//The channel between both parties.
 
     vector<ZpMersenneLongElement> inputs;//the elements to check the intersection
+    vector<ZpMersenneLongElement> polyP;//the elements to check the intersection
+
     //vector<byte> inputsAsBytesArr;//the elements to check the intersection
     TemplateField<ZpMersenneLongElement> *field;
 
@@ -24,12 +26,14 @@ class PartyR {
 
     vector<byte> T;//the first array for the input of the ot's
     vector<byte> U;//the second array for the input of the ot's
+    vector<unsigned long>tRows;
+    vector<unsigned long>uRows;
+    vector<unsigned long>zRows;
+
     OTBatchSender * otSender;			//The OT object that used in the protocol.
 
-    vector<OpenSSLAES> aesTArr;
-    vector<OpenSSLAES> aesUArr;
     int buildIndex;
-    vector<ZpMersenneLongElement> xArr;
+
     vector<ZpMersenneLongElement> yArr;
 
 

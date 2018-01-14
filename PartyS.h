@@ -19,9 +19,15 @@ class PartyS {
     int numOfItems;//the size of the set
 
     vector<byte> s;//the random bits for the ot's
+    vector<unsigned long> sElements;
     vector<byte> Q;//the results for the ot's
+    vector<unsigned long>qRows;
+    vector<unsigned long>zRows;
+
+    vector<ZpMersenneLongElement> polyP;//the elements to check the intersection
+
     OTBatchReceiver * otReceiver;			//The OT object that used in the protocol.
-    vector<OpenSSLAES> aesQArr;
+
     vector<ZpMersenneLongElement> xArr;
     vector<ZpMersenneLongElement> yArr;
 
@@ -43,6 +49,8 @@ private:
     void sendHashValues();
 
     void setAllKeys();
+    void setInputsToByteVector(int offset, int numOfItemsToConvert,vector<byte> & inputsAsBytesArr);
+
 
 
 
