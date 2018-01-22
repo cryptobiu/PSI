@@ -8,28 +8,35 @@
 #include "../../include/interactive_mid_protocols/OTExtensionBristol.hpp"
 #include "../../include/primitives/Mersenne.hpp"
 #include "../../include/primitives/PrfOpenSSL.hpp"
+#include <NTL/ZZ_p.h>
+#include <NTL/ZZ_pX.h>
+
+
 
 class PartyS {
 
     boost::asio::io_service io_service;
     shared_ptr<CommParty> channel;				//The channel between both parties.
-    TemplateField<ZpMersenneLongElement> *field;
+    //TemplateField<ZpMersenneLongElement> *field;
 
-    vector<ZpMersenneLongElement> inputs;//the elements to check the intersection
+    vector<ZZ_p> inputs;//the elements to check the intersection
     int numOfItems;//the size of the set
 
     vector<byte> s;//the random bits for the ot's
-    vector<unsigned long> sElements;
+    vector<byte> sElements;
     vector<byte> Q;//the results for the ot's
-    vector<unsigned long>qRows;
-    vector<unsigned long>zRows;
+    vector<vector<byte>>qRows;
+    vector<vector<byte>>zRows;
 
-    vector<ZpMersenneLongElement> polyP;//the elements to check the intersection
+    OpenSSLSHA256 hash;
+    vector<byte> zSha;
+
+    ZZ_pX polyP;//the polinomial from the interpolation
 
     OTBatchReceiver * otReceiver;			//The OT object that used in the protocol.
 
-    vector<ZpMersenneLongElement> xArr;
-    vector<ZpMersenneLongElement> yArr;
+    vector<ZZ_p> xArr;
+    vector<ZZ_p> yArr;
 
 public:
     PartyS(int numOfItems);

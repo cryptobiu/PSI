@@ -8,6 +8,8 @@
 #include "../../include/comm/Comm.hpp"
 #include "Defines.h"
 #include "Poly.h"
+#include "tests_zp.h"
+#include "NTL/ZZ.h"
 
 
 PartyS::PartyS(int numOfItems): numOfItems(numOfItems){
@@ -32,34 +34,97 @@ PartyS::PartyS(int numOfItems): numOfItems(numOfItems){
     // connect to party one
     channel->join(500, 5000);
 
-    field = new TemplateField<ZpMersenneLongElement>(0);
+    ZZ prime;
+    GenPrime(prime, 400);
+
+    ZZ_p::init(ZZ(prime));
+
+    //field = new TemplateField<ZpMersenneLongElement>(0);
 
     //----------GET FROM FILE
     inputs.resize(numOfItems);
 
     for(int i=0; i<numOfItems; i++){
-        inputs[i] = 4+i;
+        inputs[i] = to_ZZ_p(ZZ(4+i));
+
     }
 
     qRows.resize(numOfItems);
     zRows.resize(numOfItems);
-    polyP.resize(numOfItems);
 
-    sElements.resize(SIZE_OF_NEEDED_BITS/field->getElementSizeInBits());
+    for(int i=0; i<numOfItems; i++){
+        qRows[i].resize(SIZE_OF_NEEDED_BYTES);
+        zRows[i].resize(SIZE_OF_NEEDED_BYTES);
+
+    }
+    zSha.resize(numOfItems*hash.getHashedMsgSize());
+
+    yArr.resize(numOfItems);
+
+    sElements.resize(SIZE_OF_NEEDED_BYTES);
 
 }
 
 void PartyS::runProtocol(){
 
+
+    auto all = scapi_now();
     chooseS(SIZE_OF_NEEDED_BITS);
+    auto end = std::chrono::system_clock::now();
+    int elapsed_ms = std::chrono::duration_cast<std::chrono::microseconds>(end - all).count();
+    cout << "PartyS - chooseS took " << elapsed_ms << " microseconds" << endl;
+
+    all = scapi_now();
     runOT();
+    end = std::chrono::system_clock::now();
+    elapsed_ms = std::chrono::duration_cast<std::chrono::microseconds>(end - all).count();
+    cout << "PartyS - runOT took " << elapsed_ms << " microseconds" << endl;
+
+    all = scapi_now();
     recieveCoeffs();
+    end = std::chrono::system_clock::now();
+    elapsed_ms = std::chrono::duration_cast<std::chrono::microseconds>(end - all).count();
+    cout << "PartyS - recieveCoeffs took " << elapsed_ms << " microseconds" << endl;
+
+    all = scapi_now();
     sendHashValues();
+    end = std::chrono::system_clock::now();
+    elapsed_ms = std::chrono::duration_cast<std::chrono::microseconds>(end - all).count();
+    cout << "PartyS - sendHashValues took " << elapsed_ms << " microseconds" << endl;
+
 
 }
 
 
 void PartyS::chooseS(int size){
+
+//    s.resize(size);//each bit is represened by byte
+//
+//    byte * buf = new byte[size+7/8];
+//    if (!RAND_bytes(buf, size+7/8)){
+//
+//        cout<<"failed to create"<<endl;
+//    }
+//
+//
+////    for(int i=0;i<s.size(); i++)
+////        s[i] = 1;
+//    //go over all the random bytes and set each random bit to a byte containing 0 or 1 for the OT
+//
+//    sElements[0] = 0;
+//
+//    for(int i=0; i<size+7/8; i++){
+//
+//        for(int j=0; j<8; j++){
+//
+//            //get the relevant bit from the random byte
+//            s[i*8 + j] = (buf[i] >> j) & 1;
+//
+//
+//        }
+//        ((byte *)sElements.data())[i] = buf[i];
+//    }
+
 
     s.resize(size);//each bit is represened by byte
 
@@ -99,24 +164,24 @@ void PartyS::runOT() {
 
     OTBatchRInput * input = new OTExtensionRandomizedRInput(s, elementSize);
 
-    for(int i=0; i<nOTs; i++)
-    {
-        cout<< (int)s[i]<<"--";
-
-    }
+//    for(int i=0; i<nOTs; i++)
+//    {
+//        cout<< (int)s[i]<<"--";
+//
+//    }
     //Run the Ot protocol.
     auto output = otReceiver->transfer(input);
     Q = ((OTOnByteArrayROutput *)output.get())->getXSigma();
 
-    cout<<"the size is :" <<Q.size()<<endl;
-    for(int i=0; i<nOTs*(elementSize/8); i++){
-
-        if (i%(elementSize/8)==0){
-            cout<<endl;
-        }
-        cout<< (int)Q[i]<<"--";
-
-    }
+//    cout<<"the size is :" <<Q.size()<<endl;
+//    for(int i=0; i<nOTs*(elementSize/8); i++){
+//
+//        if (i%(elementSize/8)==0){
+//            cout<<endl;
+//        }
+//        cout<< (int)Q[i]<<"--";
+//
+//    }
 
 
 
@@ -126,15 +191,12 @@ void PartyS::runOT() {
 void PartyS::recieveCoeffs(){
 
 
-    cout<<"recieveCoeffs "<<endl;
-    auto fieldSize = field->getElementSizeInBits();
-
     //build the rows ti and ui
 
-    vector<vector<byte>>qbitArr(fieldSize);
+    vector<vector<byte>>qbitArr(SIZE_OF_NEEDED_BITS);
 
 
-    for(int i=0; i<field->getElementSizeInBits(); i++){
+    for(int i=0; i<SIZE_OF_NEEDED_BITS; i++){
         qbitArr[i].resize(16*numOfItems);
 
     }
@@ -146,7 +208,7 @@ void PartyS::recieveCoeffs(){
     OpenSSLAES aes;
     SecretKey key;
 
-    for(int i=0; i<field->getElementSizeInBits(); i++){
+    for(int i=0; i<SIZE_OF_NEEDED_BITS; i++){
 
         key = SecretKey(Q.data() + 16 * i, 16, "aes");
         aes.setKey(key);
@@ -158,18 +220,18 @@ void PartyS::recieveCoeffs(){
     //in this stage we have the entire matrix but not with a single bit, rather with 128 bits
 
     //extract each bit to get the entire row of bits
-    unsigned long temp = 0;
+    byte temp = 0;
     for(int i=0; i<numOfItems;i++){
 
         //init the value
-        qRows[i] = 0;
-        for(int j=0; j<fieldSize; j++){
+        //qRows[i][j] = 0;
+        for(int j=0; j<SIZE_OF_NEEDED_BITS; j++){
 
-            //get first byte from the entires encryption
+            //get first bit from the entires encryption
             temp = qbitArr[j][i*16] & 1;
 
             //get the bit in the right position
-            qRows[i] += (temp<<j);
+            qRows[i][j/8] += (temp<<(j%8));
 
         }
 
@@ -177,9 +239,11 @@ void PartyS::recieveCoeffs(){
 
     //recieve the coefficients from R
 
-    cout<<"polyP size is " <<polyP.size()<<endl;
+    vector<byte> polyBytes(numOfItems*SIZE_OF_NEEDED_BYTES);
 
-    channel->read((byte*)polyP.data(), polyP.size()*field->getElementSizeInBytes());
+    channel->read((byte*)polyBytes.data(), polyBytes.size());
+
+    BytesToZZ_px(polyBytes.data(), polyP, numOfItems, SIZE_OF_NEEDED_BYTES);
 
 }
 
@@ -188,7 +252,10 @@ void PartyS::setInputsToByteVector(int offset, int numOfItemsToConvert, vector<b
 
     for (int i = 0; i<numOfItemsToConvert; i++){
 
-        field->elementToBytes(inputsAsBytesArr.data()  + AES_LENGTH/8*(i+offset), inputs[i+offset]);
+        //get only the top 16 bytes of the inputs
+        BytesFromZZ(inputsAsBytesArr.data()  + AES_LENGTH_BYTES*(i+offset),rep(inputs[i+offset]),AES_LENGTH_BYTES);
+
+        //field->elementToBytes(inputsAsBytesArr.data()  + AES_LENGTH_BYTES*(i+offset), inputs[i+offset]);
     }
 
 }
@@ -196,26 +263,46 @@ void PartyS::setInputsToByteVector(int offset, int numOfItemsToConvert, vector<b
 
 void PartyS::sendHashValues(){
 
+    int sizeOfHashedMsg = hash.getHashedMsgSize();
 
-    cout<<"sendHashValues "<<endl;
+    auto all = scapi_now();
+
+
+    //eval all points
+    multipoint_evaluate_zp(polyP, inputs.data(), yArr.data(), numOfItems-1);
+    vector<byte> evaluatedElem(SIZE_OF_NEEDED_BYTES);
+
     for(int i=0; i<numOfItems; i++){
 
-        //eval <s,P(ai)>
+        //get the evaluated element as vector;
+        BytesFromZZ(evaluatedElem.data(),rep(yArr[i]),SIZE_OF_NEEDED_BYTES);
 
-        ZpMersenneLongElement temp;
-        Poly::evalMersenne(temp, polyP, inputs[i]);
-        //temp = sElements[0]*temp;
 
-        unsigned long tempLong = temp.elem;
-        tempLong = sElements[0] & tempLong;
 
-        zRows[i] = qRows[i] ^ tempLong;
+        for(int j=0; j<SIZE_OF_NEEDED_BYTES; j++) {
+
+            zRows[i][j] = qRows[i][j] ^ (evaluatedElem[j]&sElements[j]);
+
+        }
+
+
+        hash.update(zRows[i], 0, SIZE_OF_NEEDED_BYTES);
+        hash.hashFinal(zSha, i*sizeOfHashedMsg);
+
     }
+
+    auto end = std::chrono::system_clock::now();
+    int elapsed_ms = std::chrono::duration_cast<std::chrono::milliseconds>(end - all).count();
+    cout << "   PartyS - eval and prepare to send took " << elapsed_ms << " milliseconds" << endl;
+
 
 
     //NOTE need to send the hash values and not the values
 
-    channel->write((byte*) zRows.data(), zRows.size()*8);
+    //channel->write((byte*) zRows.data(), zRows.size()*8);
+
+
+    channel->write((byte*) zSha.data(), zSha.size());
 
 
 

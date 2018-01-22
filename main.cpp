@@ -9,12 +9,21 @@ int main(int argc, char* argv[]) {
 
     if (partyNum == 0) {
         // create Party one with the previous created objects.
-        PartyR pR(20);
+        PartyR pR(102400);
+
+        auto all = scapi_now();
         pR.runProtocol();
+        auto end = std::chrono::system_clock::now();
+        int elapsed_ms = std::chrono::duration_cast<std::chrono::milliseconds>(end - all).count();
+        cout << "********************* PartyR ********\nRunning took " << elapsed_ms << " milliseconds" << endl;
     }
     else if (partyNum == 1) {
-        PartyS pS(20);
+        auto all = scapi_now();
+        PartyS pS(102400);
         pS.runProtocol();
+        auto end = std::chrono::system_clock::now();
+        int elapsed_ms = std::chrono::duration_cast<std::chrono::milliseconds>(end - all).count();
+        cout << "********************* PartyS ********\nRunning took " << elapsed_ms << " milliseconds" << endl;
     }
 
 
