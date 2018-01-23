@@ -34,10 +34,12 @@ PartyS::PartyS(int numOfItems): numOfItems(numOfItems){
     // connect to party one
     channel->join(500, 5000);
 
-    ZZ prime;
-    GenPrime(prime, 400);
+//    ZZ prime;
+//    GenPrime(prime, 400);
+//
+//    ZZ_p::init(ZZ(prime));
 
-    ZZ_p::init(ZZ(prime));
+    ZZ_p::init(ZZ(2305843009213693951));
 
     //field = new TemplateField<ZpMersenneLongElement>(0);
 
@@ -83,14 +85,14 @@ void PartyS::runProtocol(){
     all = scapi_now();
     recieveCoeffs();
     end = std::chrono::system_clock::now();
-    elapsed_ms = std::chrono::duration_cast<std::chrono::microseconds>(end - all).count();
-    cout << "PartyS - recieveCoeffs took " << elapsed_ms << " microseconds" << endl;
+    elapsed_ms = std::chrono::duration_cast<std::chrono::milliseconds>(end - all).count();
+    cout << "PartyS - recieveCoeffs took " << elapsed_ms << " milliseconds" << endl;
 
     all = scapi_now();
     sendHashValues();
     end = std::chrono::system_clock::now();
-    elapsed_ms = std::chrono::duration_cast<std::chrono::microseconds>(end - all).count();
-    cout << "PartyS - sendHashValues took " << elapsed_ms << " microseconds" << endl;
+    elapsed_ms = std::chrono::duration_cast<std::chrono::milliseconds>(end - all).count();
+    cout << "PartyS - sendHashValues took " << elapsed_ms << " milliseconds" << endl;
 
 
 }
@@ -245,6 +247,8 @@ void PartyS::recieveCoeffs(){
 
     BytesToZZ_px(polyBytes.data(), polyP, numOfItems, SIZE_OF_NEEDED_BYTES);
 
+    //cout<<polyP;
+
 }
 
 void PartyS::setInputsToByteVector(int offset, int numOfItemsToConvert, vector<byte> & inputsAsBytesArr) {
@@ -256,6 +260,9 @@ void PartyS::setInputsToByteVector(int offset, int numOfItemsToConvert, vector<b
         BytesFromZZ(inputsAsBytesArr.data()  + AES_LENGTH_BYTES*(i+offset),rep(inputs[i+offset]),AES_LENGTH_BYTES);
 
         //field->elementToBytes(inputsAsBytesArr.data()  + AES_LENGTH_BYTES*(i+offset), inputs[i+offset]);
+
+//        cout<<inputs[i] ;
+//        cout<<" " + (int)*(inputsAsBytesArr.data()+ AES_LENGTH_BYTES*(i+offset))<<endl;
     }
 
 }
@@ -288,6 +295,8 @@ void PartyS::sendHashValues(){
 
         hash.update(zRows[i], 0, SIZE_OF_NEEDED_BYTES);
         hash.hashFinal(zSha, i*sizeOfHashedMsg);
+
+        //cout<< zRows[i] <<endl;
 
     }
 

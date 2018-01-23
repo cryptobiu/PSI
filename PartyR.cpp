@@ -26,10 +26,12 @@ PartyR::PartyR(int numOfItems): numOfItems(numOfItems) {
     // connect to partyS
     channel->join(500, 5000);
 
-    ZZ prime;
-    GenPrime(prime, 400);
+//    ZZ prime;
+//    GenPrime(prime, 400);
+//
+//    ZZ_p::init(ZZ(prime));
 
-    ZZ_p::init(ZZ(prime));
+    ZZ_p::init(ZZ(2305843009213693951));
 
     //inputsAsBytesArr.resize(numOfItems*AES_LENGTH/8);
 
@@ -72,27 +74,27 @@ void PartyR::runProtocol(){
     all = scapi_now();
     buildPolinomial();
     end = std::chrono::system_clock::now();
-    elapsed_ms = std::chrono::duration_cast<std::chrono::microseconds>(end - all).count();
-    cout << "PartyR - buildPolinomial took " << elapsed_ms << " microseconds" << endl;
+    elapsed_ms = std::chrono::duration_cast<std::chrono::milliseconds>(end - all).count();
+    cout << "PartyR - buildPolinomial took " << elapsed_ms << " milliseconds" << endl;
 
     all = scapi_now();
     sendCoeffs();
     end = std::chrono::system_clock::now();
-    elapsed_ms = std::chrono::duration_cast<std::chrono::microseconds>(end - all).count();
-    cout << "PartyR - sendCoeffs took " << elapsed_ms << " microseconds" << endl;
+    elapsed_ms = std::chrono::duration_cast<std::chrono::milliseconds>(end - all).count();
+    cout << "PartyR - sendCoeffs took " << elapsed_ms << " milliseconds" << endl;
 
     all = scapi_now();
     recieveHashValues();
     end = std::chrono::system_clock::now();
-    elapsed_ms = std::chrono::duration_cast<std::chrono::microseconds>(end - all).count();
-    cout << "PartyR - recieveHashValues took " << elapsed_ms << " microseconds" << endl;
+    elapsed_ms = std::chrono::duration_cast<std::chrono::milliseconds>(end - all).count();
+    cout << "PartyR - recieveHashValues took " << elapsed_ms << " milliseconds" << endl;
 
 
     all = scapi_now();
     calcOutput();
     end = std::chrono::system_clock::now();
-    elapsed_ms = std::chrono::duration_cast<std::chrono::microseconds>(end - all).count();
-    cout << "PartyR - calcOutput took " << elapsed_ms << " microseconds" << endl;
+    elapsed_ms = std::chrono::duration_cast<std::chrono::milliseconds>(end - all).count();
+    cout << "PartyR - calcOutput took " << elapsed_ms << " milliseconds" << endl;
 }
 
 void PartyR::runOT(){
@@ -140,11 +142,20 @@ void PartyR::buildPolinomial(){
     vector<vector<byte>>tbitArr(SIZE_OF_NEEDED_BITS);
     vector<vector<byte>>ubitArr(SIZE_OF_NEEDED_BITS);
 
+    auto all = scapi_now();
+
+#pragma omp parallel for
     for(int i=0; i<SIZE_OF_NEEDED_BITS; i++){
         tbitArr[i].resize(16*numOfItems);
         ubitArr[i].resize(16*numOfItems);
     }
 
+    auto end = std::chrono::system_clock::now();
+    int elapsed_ms = std::chrono::duration_cast<std::chrono::milliseconds>(end - all).count();
+    cout << "   PartyR - resize arrays " << elapsed_ms << " milliseconds" << endl;
+
+
+    all = scapi_now();
 
     vector<byte> partialInputsAsBytesArr(numOfItems*16);
     setInputsToByteVector(0, numOfItems, partialInputsAsBytesArr);
@@ -159,9 +170,6 @@ void PartyR::buildPolinomial(){
 
         aes.optimizedCompute(partialInputsAsBytesArr, tbitArr[i]);
 
-        //aesTArr[i].optimizedCompute(partialInputsAsBytesArr, tbitArr[i]);
-        //aesUArr[i].optimizedCompute(partialInputsAsBytesArr, ubitArr[i]);
-
         key = SecretKey(U.data() + 16 * i, 16, "aes");
         aes.setKey(key);
 
@@ -171,14 +179,27 @@ void PartyR::buildPolinomial(){
 
     }
 
+
+
+    //Poly::interpolateMersenne(polyP, inputs, yArr);
+
+    end = std::chrono::system_clock::now();
+    elapsed_ms = std::chrono::duration_cast<std::chrono::milliseconds>(end - all).count();
+    cout << "   PartyR - calc PRF " << elapsed_ms << " milliseconds" << endl;
+
+
     //in this stage we have the entire matrix but not with a single bit, rather with 128 bits
 
     //extract each bit to get the entire row of bits
     unsigned long temp = 0;
     vector<vector<byte>> tempArr(numOfItems);
 
+    all = scapi_now();
+#pragma omp parallel for
     for(int i=0; i<numOfItems; i++)
         tempArr[i].resize(SIZE_OF_NEEDED_BYTES);
+
+
     for(int i=0; i<numOfItems;i++){
 
 //        //init the value
@@ -190,7 +211,7 @@ void PartyR::buildPolinomial(){
             temp = tbitArr[j][i*16] & 1;
 
             //get the bit in the right position
-            tRows[i][j/8] += (temp<<j%8);
+            tRows[i][j/8] += (temp<<(j%8));
 
 
             //get first byte from the entires encryption
@@ -199,13 +220,7 @@ void PartyR::buildPolinomial(){
             //get the bit in the right position
             uRows[i][j/8] += (temp<<(j%8));
 
-            if(j%8==7){
-
-            }
-
-
         }
-
 
 
 
@@ -220,29 +235,37 @@ void PartyR::buildPolinomial(){
         yArr[i] =  to_ZZ_p(zz);
     }
 
+    end = std::chrono::system_clock::now();
+    elapsed_ms = std::chrono::duration_cast<std::chrono::milliseconds>(end - all).count();
+    cout << "   PartyR - extract bits took " << elapsed_ms << " milliseconds" << endl;
+
 
     //interpolate on input,y cordinates
-    auto all = scapi_now();
+    all = scapi_now();
 
 
     //Poly::interpolateMersenne(polyP, inputs, yArr);
 
     interpolate_zp(polyP, inputs.data(), yArr.data(), numOfItems - 1);
-    auto end = std::chrono::system_clock::now();
-    int elapsed_ms = std::chrono::duration_cast<std::chrono::milliseconds>(end - all).count();
-    cout << "   PartyR - interpolateMersenne took " << elapsed_ms << " milliseconds" << endl;
+    end = std::chrono::system_clock::now();
+    elapsed_ms = std::chrono::duration_cast<std::chrono::milliseconds>(end - all).count();
+    cout << "   PartyR - interpolate took " << elapsed_ms << " milliseconds" << endl;
 
 
+    //cout<<polyP;
 }
 
 void PartyR::setInputsToByteVector(int offset, int numOfItemsToConvert, vector<byte> & inputsAsBytesArr) {
 
-
+#pragma omp parallel for
     for (int i = 0; i<numOfItemsToConvert; i++){
 
         BytesFromZZ(inputsAsBytesArr.data()  + AES_LENGTH_BYTES*(i+offset),rep(inputs[i+offset]),AES_LENGTH_BYTES);
 
         //field->elementToBytes(inputsAsBytesArr.data()  + AES_LENGTH/8*(i+offset), inputs[i+offset]);
+
+//        cout<<inputs[i] ;
+//        cout<<" " + (int)*(inputsAsBytesArr.data()+ AES_LENGTH_BYTES*(i+offset))<<endl;
     }
 
 }
@@ -287,7 +310,7 @@ void PartyR::calcHashValues() {
 
 
         tSha[i].resize(sizeOfHashedMsg);
-        hash.update(zRows[i], 0, SIZE_OF_NEEDED_BYTES);
+        hash.update(tRows[i], 0, SIZE_OF_NEEDED_BYTES);
         hash.hashFinal(tSha[i], 0);
     }
 }
