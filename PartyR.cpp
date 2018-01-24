@@ -7,19 +7,21 @@
 #include "Poly.h"
 #include "tests_zp.h"
 #include "utils_zp.h"
+#include <unordered_map>
+#include <omp.h>
 
-PartyR::PartyR(int numOfItems): numOfItems(numOfItems) {
+PartyR::PartyR(int numOfItems, int groupNum): numOfItems(numOfItems) {
 
     auto start = scapi_now();
-    SocketPartyData me(IpAddress::from_string("127.0.0.1"), 1213);
+    SocketPartyData me(IpAddress::from_string("127.0.0.1"), 1213 +100*groupNum);
 
-    SocketPartyData other(IpAddress::from_string("127.0.0.1"), 1212);
+    SocketPartyData other(IpAddress::from_string("127.0.0.1"), 1212+100*groupNum);
     cout << "my ip: " << me.getIpAddress() << "port:" << me.getPort() << endl;
     cout << "other ip: " << other.getIpAddress() << "port:" << other.getPort() << endl;
     channel = make_shared<CommPartyTCPSynced>(io_service, me, other);
     print_elapsed_ms(start, "PartyR: Init");
 
-    SocketPartyData senderParty(IpAddress::from_string("127.0.0.1"), 7766);
+    SocketPartyData senderParty(IpAddress::from_string("127.0.0.1"), 7766+100*groupNum);
     cout<<"sender ip: "<<senderParty.getIpAddress() <<"port:"<<senderParty.getPort()<<endl;
     otSender = new OTExtensionBristolSender(senderParty.getPort(), true, channel);
 
@@ -31,6 +33,8 @@ PartyR::PartyR(int numOfItems): numOfItems(numOfItems) {
 //
 //    ZZ_p::init(ZZ(prime));
 
+    //cout<<"prime is" <<prime<<endl;
+
     ZZ_p::init(ZZ(2305843009213693951));
 
     //inputsAsBytesArr.resize(numOfItems*AES_LENGTH/8);
@@ -39,7 +43,7 @@ PartyR::PartyR(int numOfItems): numOfItems(numOfItems) {
     inputs.resize(numOfItems);
 
     for(int i=0; i<numOfItems; i++){
-        inputs[i] = to_ZZ_p(ZZ(2*i));
+        inputs[i] = to_ZZ_p(ZZ(i));
     }
     yArr.resize(numOfItems);
 
@@ -58,6 +62,14 @@ PartyR::PartyR(int numOfItems): numOfItems(numOfItems) {
     zSha.resize(numOfItems*hash.getHashedMsgSize());
     tSha.resize(numOfItems);
 
+
+    tbitArr.resize(SIZE_OF_NEEDED_BITS);
+    ubitArr.resize(SIZE_OF_NEEDED_BITS);
+
+    for(int i=0; i<SIZE_OF_NEEDED_BITS; i++){
+        tbitArr[i].resize(16*numOfItems);
+        ubitArr[i].resize(16*numOfItems);
+    }
 
 
 }
@@ -139,16 +151,10 @@ void PartyR::buildPolinomial(){
 
      //build the rows ti and ui
 
-    vector<vector<byte>>tbitArr(SIZE_OF_NEEDED_BITS);
-    vector<vector<byte>>ubitArr(SIZE_OF_NEEDED_BITS);
-
     auto all = scapi_now();
 
-#pragma omp parallel for
-    for(int i=0; i<SIZE_OF_NEEDED_BITS; i++){
-        tbitArr[i].resize(16*numOfItems);
-        ubitArr[i].resize(16*numOfItems);
-    }
+//#pragma omp parallel for
+
 
     auto end = std::chrono::system_clock::now();
     int elapsed_ms = std::chrono::duration_cast<std::chrono::milliseconds>(end - all).count();
@@ -163,19 +169,28 @@ void PartyR::buildPolinomial(){
     OpenSSLAES aes;
     SecretKey key;
 
+    aesArr.resize(SIZE_OF_NEEDED_BITS);
+
+
+   /// omp_set_num_threads(4);
+
+//#pragma omp parallel for
     for(int i=0; i<SIZE_OF_NEEDED_BITS; i++){
 
         key = SecretKey(T.data() + 16 * i, 16, "aes");
-        aes.setKey(key);
 
-        aes.optimizedCompute(partialInputsAsBytesArr, tbitArr[i]);
+        aesArr[i].setKey(key);
+        //aes.setKey(key);
+
+        aesArr[i].optimizedCompute(partialInputsAsBytesArr, tbitArr[i]);
 
         key = SecretKey(U.data() + 16 * i, 16, "aes");
-        aes.setKey(key);
+        aesArr[i].setKey(key);
+        //aes.setKey(key);
 
-        aes.optimizedCompute(partialInputsAsBytesArr, ubitArr[i]);
+        aesArr[i].optimizedCompute(partialInputsAsBytesArr, ubitArr[i]);
 
-
+        //cout<<"omp_get_num_threads() = " <<    omp_get_num_threads()<<endl;
 
     }
 
@@ -195,7 +210,7 @@ void PartyR::buildPolinomial(){
     vector<vector<byte>> tempArr(numOfItems);
 
     all = scapi_now();
-#pragma omp parallel for
+//#pragma omp parallel for
     for(int i=0; i<numOfItems; i++)
         tempArr[i].resize(SIZE_OF_NEEDED_BYTES);
 
@@ -226,7 +241,10 @@ void PartyR::buildPolinomial(){
 
         for(int j=0; j<SIZE_OF_NEEDED_BYTES; j++){
             tempArr[i][j] = tRows[i][j] ^ uRows[i][j];
+
+//            cout<<(int) tRows[i][j] << " - ";
         }
+//        cout<<endl;
 
         ZZ zz;
 
@@ -247,6 +265,7 @@ void PartyR::buildPolinomial(){
     //Poly::interpolateMersenne(polyP, inputs, yArr);
 
     interpolate_zp(polyP, inputs.data(), yArr.data(), numOfItems - 1);
+
     end = std::chrono::system_clock::now();
     elapsed_ms = std::chrono::duration_cast<std::chrono::milliseconds>(end - all).count();
     cout << "   PartyR - interpolate took " << elapsed_ms << " milliseconds" << endl;
@@ -257,7 +276,7 @@ void PartyR::buildPolinomial(){
 
 void PartyR::setInputsToByteVector(int offset, int numOfItemsToConvert, vector<byte> & inputsAsBytesArr) {
 
-#pragma omp parallel for
+//#pragma omp parallel for
     for (int i = 0; i<numOfItemsToConvert; i++){
 
         BytesFromZZ(inputsAsBytesArr.data()  + AES_LENGTH_BYTES*(i+offset),rep(inputs[i+offset]),AES_LENGTH_BYTES);
@@ -265,7 +284,7 @@ void PartyR::setInputsToByteVector(int offset, int numOfItemsToConvert, vector<b
         //field->elementToBytes(inputsAsBytesArr.data()  + AES_LENGTH/8*(i+offset), inputs[i+offset]);
 
 //        cout<<inputs[i] ;
-//        cout<<" " + (int)*(inputsAsBytesArr.data()+ AES_LENGTH_BYTES*(i+offset))<<endl;
+//        cout<<" "<<  (int)*(inputsAsBytesArr.data()+ AES_LENGTH_BYTES*(i+offset))<<endl;
     }
 
 }
@@ -320,32 +339,35 @@ void PartyR::calcOutput(){
     int sizeOfHashedMsg = hash.getHashedMsgSize();
     //NOTE use map instead of vectors
 
-
-//    for(int i=0; i<zRows.size(); i++){
 //
-//        for(int j=0; j<tRows.size(); j++){
+//    unordered_map<vector<byte>, int> m;
 //
-//            if( zRows[i]==tRows[j]){
-//
-//                //cout<<"found a match for index "<< i << "and index "<<j<<endl;
-//            }
-//        }
-//    }
-
-
+//    for (auto const & x : tSha) { m.insert({x, 1}); }
     vector<byte> zElement(sizeOfHashedMsg);
 
     for(int i=0; i<zSha.size()/sizeOfHashedMsg; i++){
 
         zElement.assign(zSha.data() + i*sizeOfHashedMsg, zSha.data() + (i+1)*sizeOfHashedMsg);
 
+
         for(int j=0; j<tRows.size(); j++){
 
             if( zElement==tSha[j]){ //vector of byte equal
 
-                //cout<<"found a match for index "<< i << "and index "<<j<<endl;
+                cout<<"found a match for index "<< i  <<   " and index "<<j<<endl;
             }
         }
     }
+
+//    for(int i=0; i<zSha.size()/sizeOfHashedMsg; i++){
+//
+//        zElement.assign(zSha.data() + i*sizeOfHashedMsg, zSha.data() + (i+1)*sizeOfHashedMsg);
+//
+//        if(m.find(zElement) != m.end()){
+//
+//            //cout<<"found a match with index "<< i<<endl;
+//        }
+//    }
+
 
 }

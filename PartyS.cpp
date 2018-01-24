@@ -10,15 +10,15 @@
 #include "Poly.h"
 #include "tests_zp.h"
 #include "NTL/ZZ.h"
+#include <omp.h>
 
-
-PartyS::PartyS(int numOfItems): numOfItems(numOfItems){
+PartyS::PartyS(int numOfItems, int groupNum): numOfItems(numOfItems){
 
 
 
     auto start = scapi_now();
-    SocketPartyData me(IpAddress::from_string("127.0.0.1"), 1212);
-    SocketPartyData other(IpAddress::from_string("127.0.0.1"), 1213);
+    SocketPartyData me(IpAddress::from_string("127.0.0.1"), 1212+100*groupNum);
+    SocketPartyData other(IpAddress::from_string("127.0.0.1"), 1213+100*groupNum);
     channel = make_shared<CommPartyTCPSynced>(io_service, me, other);
     boost::thread t(boost::bind(&boost::asio::io_service::run, &io_service));
     print_elapsed_ms(start, "PartyS: Init");
@@ -26,7 +26,7 @@ PartyS::PartyS(int numOfItems): numOfItems(numOfItems){
 
     // create the OT receiver.
     start = scapi_now();
-    SocketPartyData senderParty(IpAddress::from_string("127.0.0.1"), 7766);
+    SocketPartyData senderParty(IpAddress::from_string("127.0.0.1"), 7766+100*groupNum);
 
     otReceiver = new OTExtensionBristolReceiver(senderParty.getIpAddress().to_string(), senderParty.getPort(), true, channel);
     print_elapsed_ms(start, "PartyTwo: creating OTSemiHonestExtensionReceiver");
@@ -38,6 +38,8 @@ PartyS::PartyS(int numOfItems): numOfItems(numOfItems){
 //    GenPrime(prime, 400);
 //
 //    ZZ_p::init(ZZ(prime));
+//
+//    cout<<"prime is" <<prime<<endl;
 
     ZZ_p::init(ZZ(2305843009213693951));
 
@@ -47,12 +49,13 @@ PartyS::PartyS(int numOfItems): numOfItems(numOfItems){
     inputs.resize(numOfItems);
 
     for(int i=0; i<numOfItems; i++){
-        inputs[i] = to_ZZ_p(ZZ(4+i));
+        inputs[i] = to_ZZ_p(ZZ(i));
 
     }
 
     qRows.resize(numOfItems);
     zRows.resize(numOfItems);
+
 
     for(int i=0; i<numOfItems; i++){
         qRows[i].resize(SIZE_OF_NEEDED_BYTES);
@@ -62,6 +65,13 @@ PartyS::PartyS(int numOfItems): numOfItems(numOfItems){
     zSha.resize(numOfItems*hash.getHashedMsgSize());
 
     yArr.resize(numOfItems);
+
+    qbitArr.resize(SIZE_OF_NEEDED_BITS);
+    for(int i=0; i<SIZE_OF_NEEDED_BITS; i++){
+        qbitArr[i].resize(16*numOfItems);
+
+    }
+
 
     sElements.resize(SIZE_OF_NEEDED_BYTES);
 
@@ -130,8 +140,8 @@ void PartyS::chooseS(int size){
 
     s.resize(size);//each bit is represened by byte
 
-    byte * buf = new byte[size/8];
-    if (!RAND_bytes(buf, size/8)){
+    byte * buf = new byte[(size+7)/8];
+    if (!RAND_bytes(buf, (size+7)/8)){
 
         cout<<"failed to create"<<endl;
     }
@@ -143,7 +153,7 @@ void PartyS::chooseS(int size){
 
     sElements[0] = 0;
 
-    for(int i=0; i<size/8; i++){
+    for(int i=0; i<(size+7)/8; i++){
 
         for(int j=0; j<8; j++){
 
@@ -195,13 +205,7 @@ void PartyS::recieveCoeffs(){
 
     //build the rows ti and ui
 
-    vector<vector<byte>>qbitArr(SIZE_OF_NEEDED_BITS);
 
-
-    for(int i=0; i<SIZE_OF_NEEDED_BITS; i++){
-        qbitArr[i].resize(16*numOfItems);
-
-    }
 
 
     vector<byte> partialInputsAsBytesArr(numOfItems*16);
@@ -210,14 +214,27 @@ void PartyS::recieveCoeffs(){
     OpenSSLAES aes;
     SecretKey key;
 
-    for(int i=0; i<SIZE_OF_NEEDED_BITS; i++){
 
+    aesArr.resize(SIZE_OF_NEEDED_BITS);
+    for(int i=0; i<SIZE_OF_NEEDED_BITS; i++) {
         key = SecretKey(Q.data() + 16 * i, 16, "aes");
-        aes.setKey(key);
-
-        aes.optimizedCompute(partialInputsAsBytesArr, qbitArr[i]);
+        aesArr[i].setKey(key);
 
     }
+
+
+    omp_set_num_threads(4);
+
+//#pragma omp parallel for
+    for(int i=0; i<SIZE_OF_NEEDED_BITS; i++){
+
+
+
+        aesArr[i].optimizedCompute(partialInputsAsBytesArr, qbitArr[i]);
+       // cout<<"omp_get_num_threads() = " <<    omp_get_num_threads()<<endl;
+
+    }
+
 
     //in this stage we have the entire matrix but not with a single bit, rather with 128 bits
 
@@ -261,8 +278,9 @@ void PartyS::setInputsToByteVector(int offset, int numOfItemsToConvert, vector<b
 
         //field->elementToBytes(inputsAsBytesArr.data()  + AES_LENGTH_BYTES*(i+offset), inputs[i+offset]);
 
+
 //        cout<<inputs[i] ;
-//        cout<<" " + (int)*(inputsAsBytesArr.data()+ AES_LENGTH_BYTES*(i+offset))<<endl;
+//        cout<<" "<<  (int)*(inputsAsBytesArr.data()+ AES_LENGTH_BYTES*(i+offset))<<endl;
     }
 
 }
@@ -288,9 +306,12 @@ void PartyS::sendHashValues(){
 
         for(int j=0; j<SIZE_OF_NEEDED_BYTES; j++) {
 
-            zRows[i][j] = qRows[i][j] ^ (evaluatedElem[j]&sElements[j]);
+            zRows[i][j] = qRows[i][j] ^ (evaluatedElem[j] & sElements[j]);
+
+//            cout<<(int) zRows[i][j] << " - ";
 
         }
+//        cout<<endl;
 
 
         hash.update(zRows[i], 0, SIZE_OF_NEEDED_BYTES);

@@ -33,8 +33,13 @@ class PartyR {
     vector<vector<byte>>zRows;
 
     OpenSSLSHA256 hash;
+    vector<OpenSSLAES> aesArr;
     vector<byte> zSha;
     vector<vector<byte>> tSha;
+
+    vector<vector<byte>>tbitArr;
+    vector<vector<byte>>ubitArr;
+
 
 
     OTBatchSender * otSender;			//The OT object that used in the protocol.
@@ -46,7 +51,7 @@ class PartyR {
 
 
 public:
-    PartyR(int numOfItems);
+    PartyR(int numOfItems, int groupNum);
 
     void runProtocol();
 

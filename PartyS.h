@@ -25,10 +25,13 @@ class PartyS {
     vector<byte> s;//the random bits for the ot's
     vector<byte> sElements;
     vector<byte> Q;//the results for the ot's
+    vector<vector<byte>>qbitArr;
     vector<vector<byte>>qRows;
     vector<vector<byte>>zRows;
 
     OpenSSLSHA256 hash;
+
+    vector<OpenSSLAES> aesArr;
     vector<byte> zSha;
 
     ZZ_pX polyP;//the polinomial from the interpolation
@@ -39,7 +42,7 @@ class PartyS {
     vector<ZZ_p> yArr;
 
 public:
-    PartyS(int numOfItems);
+    PartyS(int numOfItems, int groupNum);
 
 
 
