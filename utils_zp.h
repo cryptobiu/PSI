@@ -27,6 +27,6 @@ void test_evaluate(ZZ_pX& P, ZZ_p* points, ZZ_p* results, unsigned int npoints);
 void recursive_interpolate_zp(ZZ_pX& resultP, unsigned int root, ZZ_p* x, ZZ_p* y, ZZ_p* a, ZZ_pX* M, unsigned int tree_size);
 
 void BytesToZZ_px(unsigned char *bytesArr, ZZ_pX& poly, long numOfElements, long sizeOfElement);
-void ZZ_pxFromBytes(ZZ_pX& poly, unsigned char *bytesArr, long numOfElements, long sizeOfElement);
+void ZZ_pxToBytes(ZZ_pX& poly, unsigned char *bytesArr, long numOfElements, long sizeOfElement);
 
 #endif //MPEVAL_UTILS_H

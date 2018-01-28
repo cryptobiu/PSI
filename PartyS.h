@@ -42,7 +42,7 @@ class PartyS {
     vector<ZZ_p> yArr;
 
 public:
-    PartyS(int numOfItems, int groupNum);
+    PartyS(int numOfItems, int groupNum, string myIp = "127.0.0.1",  string otherIp = "127.0.0.1", int myPort = 1212,int otherPort = 1213);
 
 
 
@@ -62,8 +62,7 @@ private:
     void setInputsToByteVector(int offset, int numOfItemsToConvert,vector<byte> & inputsAsBytesArr);
 
 
-
-
+    void getInput();
 };
 
 

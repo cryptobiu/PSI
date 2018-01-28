@@ -12,7 +12,7 @@
 #include "NTL/ZZ.h"
 #include <omp.h>
 
-PartyS::PartyS(int numOfItems, int groupNum): numOfItems(numOfItems){
+PartyS::PartyS(int numOfItems, int groupNum, string myIp,  string otherIp, int myPort ,int otherPort ): numOfItems(numOfItems){
 
 
 
@@ -34,24 +34,35 @@ PartyS::PartyS(int numOfItems, int groupNum): numOfItems(numOfItems){
     // connect to party one
     channel->join(500, 5000);
 
-//    ZZ prime;
+//
 //    GenPrime(prime, 400);
 //
 //    ZZ_p::init(ZZ(prime));
 //
 //    cout<<"prime is" <<prime<<endl;
 
-    ZZ_p::init(ZZ(2305843009213693951));
+   // ZZ_p::init(ZZ(2305843009213693951));
+
+    //ZZ_p::init(ZZ(1739458288095207497));
+
+
+    //use
+    byte primeBytes[SIZE_OF_NEEDED_BITS/8+1];
+    channel->read(primeBytes, SIZE_OF_NEEDED_BITS/8+1);
+
+
+    ZZ prime;
+
+    ZZFromBytes(prime, primeBytes, SIZE_OF_NEEDED_BITS/8+1);
+
+
+    ZZ_p::init(ZZ(prime));
+
+    cout<<"prime" << prime;
+
+
 
     //field = new TemplateField<ZpMersenneLongElement>(0);
-
-    //----------GET FROM FILE
-    inputs.resize(numOfItems);
-
-    for(int i=0; i<numOfItems; i++){
-        inputs[i] = to_ZZ_p(ZZ(i));
-
-    }
 
     qRows.resize(numOfItems);
     zRows.resize(numOfItems);
@@ -75,19 +86,32 @@ PartyS::PartyS(int numOfItems, int groupNum): numOfItems(numOfItems){
 
     sElements.resize(SIZE_OF_NEEDED_BYTES);
 
+    getInput();
+
+}
+
+void PartyS::getInput()  {
+
+    //----------GET FROM FILE
+    inputs.resize(numOfItems);
+
+    for(int i=0; i<numOfItems; i++){
+        inputs[i] = to_ZZ_p(ZZ(i));
+
+    }
 }
 
 void PartyS::runProtocol(){
 
 
     auto all = scapi_now();
-    chooseS(SIZE_OF_NEEDED_BITS);
+    chooseS(SIZE_OF_NEEDED_BITS);//this can be done in preprocessing
     auto end = std::chrono::system_clock::now();
     int elapsed_ms = std::chrono::duration_cast<std::chrono::microseconds>(end - all).count();
     cout << "PartyS - chooseS took " << elapsed_ms << " microseconds" << endl;
 
     all = scapi_now();
-    runOT();
+    runOT();//this can be done in preprocessing
     end = std::chrono::system_clock::now();
     elapsed_ms = std::chrono::duration_cast<std::chrono::microseconds>(end - all).count();
     cout << "PartyS - runOT took " << elapsed_ms << " microseconds" << endl;
@@ -222,8 +246,6 @@ void PartyS::recieveCoeffs(){
 
     }
 
-
-    omp_set_num_threads(4);
 
 //#pragma omp parallel for
     for(int i=0; i<SIZE_OF_NEEDED_BITS; i++){

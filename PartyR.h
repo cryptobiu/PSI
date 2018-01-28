@@ -32,8 +32,8 @@ class PartyR {
     vector<vector<byte>>uRows;
     vector<vector<byte>>zRows;
 
-    OpenSSLSHA256 hash;
-    vector<OpenSSLAES> aesArr;
+    OpenSSLSHA256 hash;//consider using a weaker hash
+    vector<OpenSSLAES> aesArr;//array that holds an aes encryptor for each bit
     vector<byte> zSha;
     vector<vector<byte>> tSha;
 
@@ -51,7 +51,9 @@ class PartyR {
 
 
 public:
-    PartyR(int numOfItems, int groupNum);
+    PartyR(int numOfItems, int groupNum, string myIp = "127.0.0.1",  string otherIp = "127.0.0.1", int myPort = 1213,int otherPort = 1212);
+
+    void getInput();
 
     void runProtocol();
 
@@ -66,11 +68,11 @@ public:
     void calcOutput();
 
 
-    void setAllKeys();
-
     void setInputsToByteVector(int offset, int numOfItemsToConvert,vector<byte> & inputsAsBytesArr);
 
     void calcHashValues();
+
+
 };
 
 

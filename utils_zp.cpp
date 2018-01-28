@@ -167,7 +167,7 @@ void BytesToZZ_px(unsigned char *bytesArr, ZZ_pX& poly, long numOfElements, long
 
 
 }
-void ZZ_pxFromBytes(ZZ_pX& poly, unsigned char *bytesArr, long numOfElements, long sizeOfElement){
+void ZZ_pxToBytes(ZZ_pX& poly, unsigned char *bytesArr, long numOfElements, long sizeOfElement){
 
     //get the zz_p vector
 
