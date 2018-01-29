@@ -104,18 +104,21 @@ void PartyR::runProtocol(){
     int elapsed_ms = std::chrono::duration_cast<std::chrono::microseconds>(end - all).count();
     cout << "PartyR - runOT took " << elapsed_ms << " microseconds" << endl;
 
-    all = scapi_now();
-    buildPolinomial();
-    end = std::chrono::system_clock::now();
-    elapsed_ms = std::chrono::duration_cast<std::chrono::milliseconds>(end - all).count();
-    cout << "PartyR - buildPolinomial took " << elapsed_ms << " milliseconds" << endl;
+    for(int i=0; i<NUM_OF_SPLITS; i++) {
 
-    all = scapi_now();
-    sendCoeffs();
-    end = std::chrono::system_clock::now();
-    elapsed_ms = std::chrono::duration_cast<std::chrono::milliseconds>(end - all).count();
-    cout << "PartyR - sendCoeffs took " << elapsed_ms << " milliseconds" << endl;
 
+        all = scapi_now();
+        buildPolinomial();
+        end = std::chrono::system_clock::now();
+        elapsed_ms = std::chrono::duration_cast<std::chrono::milliseconds>(end - all).count();
+        cout << "PartyR - buildPolinomial took " << elapsed_ms << " milliseconds" << endl;
+
+        all = scapi_now();
+        sendCoeffs();
+        end = std::chrono::system_clock::now();
+        elapsed_ms = std::chrono::duration_cast<std::chrono::milliseconds>(end - all).count();
+        cout << "PartyR - sendCoeffs took " << elapsed_ms << " milliseconds" << endl;
+    }
     all = scapi_now();
     recieveHashValues();
     end = std::chrono::system_clock::now();

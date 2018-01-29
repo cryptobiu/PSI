@@ -54,9 +54,9 @@ private:
 
     void runOT();
 
-    void recieveCoeffs();
+    void recieveCoeffs(int split);
 
-    void evalAndSet();
+    void evalAndSet(int split);
 
     void sendHashValues();
 
@@ -67,6 +67,7 @@ private:
     void getInput();
 
 
+    void prepareQ();
 };
 
 

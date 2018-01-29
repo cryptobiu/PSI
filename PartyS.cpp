@@ -121,18 +121,22 @@ void PartyS::runProtocol(){
     elapsed_ms = std::chrono::duration_cast<std::chrono::microseconds>(end - all).count();
     cout << "PartyS - runOT took " << elapsed_ms << " microseconds" << endl;
 
-    all = scapi_now();
-    recieveCoeffs();
-    end = std::chrono::system_clock::now();
-    elapsed_ms = std::chrono::duration_cast<std::chrono::milliseconds>(end - all).count();
-    cout << "PartyS - recieveCoeffs took " << elapsed_ms << " milliseconds" << endl;
+    prepareQ();
 
-    all = scapi_now();
-    evalAndSet();
-    end = std::chrono::system_clock::now();
-    elapsed_ms = std::chrono::duration_cast<std::chrono::milliseconds>(end - all).count();
-    cout << "PartyS - evalAndSet took " << elapsed_ms << " milliseconds" << endl;
-    all = scapi_now();
+    for(int i=0; i<NUM_OF_SPLITS; i++) {
+        all = scapi_now();
+        recieveCoeffs(i);
+        end = std::chrono::system_clock::now();
+        elapsed_ms = std::chrono::duration_cast<std::chrono::milliseconds>(end - all).count();
+        cout << "PartyS - recieveCoeffs took " << elapsed_ms << " milliseconds" << endl;
+
+        all = scapi_now();
+        evalAndSet(i);
+        end = std::chrono::system_clock::now();
+        elapsed_ms = std::chrono::duration_cast<std::chrono::milliseconds>(end - all).count();
+        cout << "PartyS - evalAndSet took " << elapsed_ms << " milliseconds" << endl;
+        all = scapi_now();
+    }
     sendHashValues();
     end = std::chrono::system_clock::now();
     elapsed_ms = std::chrono::duration_cast<std::chrono::milliseconds>(end - all).count();
@@ -144,37 +148,9 @@ void PartyS::runProtocol(){
 
 void PartyS::chooseS(int size){
 
-//    s.resize(size);//each bit is represened by byte
-//
-//    byte * buf = new byte[size+7/8];
-//    if (!RAND_bytes(buf, size+7/8)){
-//
-//        cout<<"failed to create"<<endl;
-//    }
-//
-//
-////    for(int i=0;i<s.size(); i++)
-////        s[i] = 1;
-//    //go over all the random bytes and set each random bit to a byte containing 0 or 1 for the OT
-//
-//    sElements[0] = 0;
-//
-//    for(int i=0; i<size+7/8; i++){
-//
-//        for(int j=0; j<8; j++){
-//
-//            //get the relevant bit from the random byte
-//            s[i*8 + j] = (buf[i] >> j) & 1;
-//
-//
-//        }
-//        ((byte *)sElements.data())[i] = buf[i];
-//    }
+    s.resize(SIZE_OF_NEEDED_BITS);//each bit is represened by byte
 
-
-    s.resize(size);//each bit is represened by byte
-
-    byte * buf = new byte[(size+7)/8];
+    byte * buf = new byte[SIZE_SPLIT_FIELD_BYTES*NUM_OF_SPLITS];
     if (!RAND_bytes(buf, (size+7)/8)){
 
         cout<<"failed to create"<<endl;
@@ -187,16 +163,21 @@ void PartyS::chooseS(int size){
 
     sElements[0] = 0;
 
-    for(int i=0; i<(size+7)/8; i++){
-
-        for(int j=0; j<8; j++){
-
-            //get the relevant bit from the random byte
-            s[i*8 + j] = (buf[i] >> j) & 1;
+    for(int split = 0; split<NUM_OF_SPLITS; split++) {
 
 
+        for (int i = 0; i < SIZE_SPLIT_FIELD_BYTES; i++) {
+
+            for (int j = 0; j < 8; j++) {
+
+                //get the relevant bit from the random byte
+                if (i * 8 + j < SPLIT_FIELD_SIZE_BITS)
+                    s[(split*SPLIT_FIELD_SIZE_BITS)+i * 8 + j] = (buf[i] >> j) & 1;
+
+
+            }
+            ((byte *) sElements.data())[split*SIZE_SPLIT_FIELD_BYTES + i] = buf[i];
         }
-        ((byte *)sElements.data())[i] = buf[i];
     }
 
 }
@@ -234,15 +215,30 @@ void PartyS::runOT() {
 }
 
 
-void PartyS::recieveCoeffs(){
-
-
-    //build the rows ti and ui
+void PartyS::recieveCoeffs(int split){
 
 
 
 
-    vector<byte> partialInputsAsBytesArr(numOfItems*16);
+
+    //recieve the coefficients from R
+
+    vector<byte> polyBytes(numOfItems*SIZE_OF_NEEDED_BYTES);
+
+    channel->read((byte*)polyBytes.data(), polyBytes.size());
+
+    BytesToZZ_px(polyBytes.data(), polyP, numOfItems, SIZE_OF_NEEDED_BYTES);
+
+    //cout<<polyP;
+
+}
+
+void PartyS::prepareQ() {//build the rows ti and ui
+
+
+
+
+    vector<byte> partialInputsAsBytesArr(numOfItems * 16);
     setInputsToByteVector(0, numOfItems, partialInputsAsBytesArr);
     //NOTE-----------change to param of the underlying field
     OpenSSLAES aes;
@@ -272,32 +268,21 @@ void PartyS::recieveCoeffs(){
 
     //extract each bit to get the entire row of bits
     byte temp = 0;
-    for(int i=0; i<numOfItems;i++){
+    for(int i=0; i < numOfItems; i++){
 
         //init the value
         //qRows[i][j] = 0;
         for(int j=0; j<SIZE_OF_NEEDED_BITS; j++){
 
             //get first bit from the entires encryption
-            temp = qbitArr[j][i*16] & 1;
+            temp = qbitArr[j][i * 16] & 1;
 
             //get the bit in the right position
-            qRows[i][j/8] += (temp<<(j%8));
+            qRows[i][j / 8] += (temp << (j % 8));
 
         }
 
     }
-
-    //recieve the coefficients from R
-
-    vector<byte> polyBytes(numOfItems*SIZE_OF_NEEDED_BYTES);
-
-    channel->read((byte*)polyBytes.data(), polyBytes.size());
-
-    BytesToZZ_px(polyBytes.data(), polyP, numOfItems, SIZE_OF_NEEDED_BYTES);
-
-    //cout<<polyP;
-
 }
 
 void PartyS::setInputsToByteVector(int offset, int numOfItemsToConvert, vector<byte> & inputsAsBytesArr) {
@@ -350,20 +335,20 @@ void PartyS::sendHashValues(){
 
 }
 
-void PartyS::evalAndSet()  {//eval all points
+void PartyS::evalAndSet(int split)  {//eval all points
     multipoint_evaluate_zp(polyP, inputs.data(), yArr.data(), numOfItems - 1);
-    vector<byte> evaluatedElem(SIZE_OF_NEEDED_BYTES);
+    vector<byte> evaluatedElem(SIZE_SPLIT_FIELD_BYTES);
 
     for(int i=0; i < numOfItems; i++){
 
         //get the evaluated element as vector;
-        BytesFromZZ(evaluatedElem.data(), rep(yArr[i]), SIZE_OF_NEEDED_BYTES);
+        BytesFromZZ(evaluatedElem.data(), rep(yArr[i]), SIZE_SPLIT_FIELD_BYTES);
 
 
 
-        for(int j=0; j<SIZE_OF_NEEDED_BYTES; j++) {
+        for(int j=0; j<SIZE_SPLIT_FIELD_BYTES; j++) {
 
-            zRows[i][j] = qRows[i][j] ^ (evaluatedElem[j] & sElements[j]);
+            zRows[i][SIZE_SPLIT_FIELD_BYTES*split + j] = qRows[i][SIZE_SPLIT_FIELD_BYTES*split+j] ^ (evaluatedElem[j] & sElements[SIZE_SPLIT_FIELD_BYTES*split+j]);
 
 //            cout<<(int) zRows[i][j] << " - ";
 
