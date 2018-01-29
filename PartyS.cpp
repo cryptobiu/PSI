@@ -17,8 +17,8 @@ PartyS::PartyS(int numOfItems, int groupNum, string myIp,  string otherIp, int m
 
 
     auto start = scapi_now();
-    SocketPartyData me(IpAddress::from_string("127.0.0.1"), 1212+100*groupNum);
-    SocketPartyData other(IpAddress::from_string("127.0.0.1"), 1213+100*groupNum);
+    SocketPartyData me(IpAddress::from_string(myIp), myPort+100*groupNum);
+    SocketPartyData other(IpAddress::from_string(otherIp), otherPort+100*groupNum);
     channel = make_shared<CommPartyTCPSynced>(io_service, me, other);
     boost::thread t(boost::bind(&boost::asio::io_service::run, &io_service));
     print_elapsed_ms(start, "PartyS: Init");
@@ -26,7 +26,7 @@ PartyS::PartyS(int numOfItems, int groupNum, string myIp,  string otherIp, int m
 
     // create the OT receiver.
     start = scapi_now();
-    SocketPartyData senderParty(IpAddress::from_string("127.0.0.1"), 7766+100*groupNum);
+    SocketPartyData senderParty(IpAddress::from_string(otherIp), 7766+100*groupNum);
 
     otReceiver = new OTExtensionBristolReceiver(senderParty.getIpAddress().to_string(), senderParty.getPort(), true, channel);
     print_elapsed_ms(start, "PartyTwo: creating OTSemiHonestExtensionReceiver");
@@ -45,6 +45,9 @@ PartyS::PartyS(int numOfItems, int groupNum, string myIp,  string otherIp, int m
 
     //ZZ_p::init(ZZ(1739458288095207497));
 
+//    string str("170141183460469231731687303715884105727");
+//    ZZ number(NTL::INIT_VAL, str.c_str());
+//    ZZ_p::init(ZZ(number));
 
     //use
     byte primeBytes[SIZE_OF_NEEDED_BITS/8+1];
@@ -57,6 +60,8 @@ PartyS::PartyS(int numOfItems, int groupNum, string myIp,  string otherIp, int m
 
 
     ZZ_p::init(ZZ(prime));
+
+
 
     cout<<"prime" << prime;
 
@@ -122,6 +127,11 @@ void PartyS::runProtocol(){
     elapsed_ms = std::chrono::duration_cast<std::chrono::milliseconds>(end - all).count();
     cout << "PartyS - recieveCoeffs took " << elapsed_ms << " milliseconds" << endl;
 
+    all = scapi_now();
+    evalAndSet();
+    end = std::chrono::system_clock::now();
+    elapsed_ms = std::chrono::duration_cast<std::chrono::milliseconds>(end - all).count();
+    cout << "PartyS - evalAndSet took " << elapsed_ms << " milliseconds" << endl;
     all = scapi_now();
     sendHashValues();
     end = std::chrono::system_clock::now();
@@ -315,33 +325,13 @@ void PartyS::sendHashValues(){
     auto all = scapi_now();
 
 
-    //eval all points
-    multipoint_evaluate_zp(polyP, inputs.data(), yArr.data(), numOfItems-1);
-    vector<byte> evaluatedElem(SIZE_OF_NEEDED_BYTES);
 
-    for(int i=0; i<numOfItems; i++){
-
-        //get the evaluated element as vector;
-        BytesFromZZ(evaluatedElem.data(),rep(yArr[i]),SIZE_OF_NEEDED_BYTES);
-
-
-
-        for(int j=0; j<SIZE_OF_NEEDED_BYTES; j++) {
-
-            zRows[i][j] = qRows[i][j] ^ (evaluatedElem[j] & sElements[j]);
-
-//            cout<<(int) zRows[i][j] << " - ";
-
-        }
-//        cout<<endl;
-
-
+    for(int i=0; i<numOfItems; i++) {
         hash.update(zRows[i], 0, SIZE_OF_NEEDED_BYTES);
-        hash.hashFinal(zSha, i*sizeOfHashedMsg);
-
-        //cout<< zRows[i] <<endl;
-
+        hash.hashFinal(zSha, i * sizeOfHashedMsg);
     }
+
+    //cout<< zRows[i] <<endl;
 
     auto end = std::chrono::system_clock::now();
     int elapsed_ms = std::chrono::duration_cast<std::chrono::milliseconds>(end - all).count();
@@ -358,6 +348,32 @@ void PartyS::sendHashValues(){
 
 
 
+}
+
+void PartyS::evalAndSet()  {//eval all points
+    multipoint_evaluate_zp(polyP, inputs.data(), yArr.data(), numOfItems - 1);
+    vector<byte> evaluatedElem(SIZE_OF_NEEDED_BYTES);
+
+    for(int i=0; i < numOfItems; i++){
+
+        //get the evaluated element as vector;
+        BytesFromZZ(evaluatedElem.data(), rep(yArr[i]), SIZE_OF_NEEDED_BYTES);
+
+
+
+        for(int j=0; j<SIZE_OF_NEEDED_BYTES; j++) {
+
+            zRows[i][j] = qRows[i][j] ^ (evaluatedElem[j] & sElements[j]);
+
+//            cout<<(int) zRows[i][j] << " - ";
+
+        }
+//        cout<<endl;
+
+
+
+
+    }
 }
 
 

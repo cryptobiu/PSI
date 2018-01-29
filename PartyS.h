@@ -56,6 +56,8 @@ private:
 
     void recieveCoeffs();
 
+    void evalAndSet();
+
     void sendHashValues();
 
     void setAllKeys();
@@ -63,6 +65,8 @@ private:
 
 
     void getInput();
+
+
 };
 
 

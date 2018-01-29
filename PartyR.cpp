@@ -44,6 +44,11 @@ PartyR::PartyR(int numOfItems, int groupNum, string myIp,  string otherIp,int my
     channel->write(primeBytes, SIZE_OF_NEEDED_BITS/8+1);
     cout<<"prime is" <<prime<<endl;
 
+
+//    string str("170141183460469231731687303715884105727");
+//    ZZ number(NTL::INIT_VAL, str.c_str());
+//    ZZ_p::init(ZZ(number));
+
     //ZZ_p::init(ZZ(1739458288095207497));
     //ZZ_p::init(ZZ(2305843009213693951));
 
@@ -396,7 +401,7 @@ void PartyR::calcOutput(){
 
    // omp_set_num_threads(4);
 
-    //TODO improve threads performance (no need to use atomic)
+    //TODO improve threads performance. Note that the current map find is not thread safe.
 //#pragma omp parallel for
     for(int i=0; i<zSha.size()/sizeOfHashedMsg; i++){
 
