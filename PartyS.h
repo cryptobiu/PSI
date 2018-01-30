@@ -26,8 +26,8 @@ class PartyS {
     vector<byte> sElements;
     vector<byte> Q;//the results for the ot's
     vector<vector<byte>>qbitArr;
-    vector<vector<byte>>qRows;
-    vector<vector<byte>>zRows;
+    vector<vector<vector<byte>>>qRows;
+    vector<vector<vector<byte>>>zRows;
 
     OpenSSLSHA256 hash;
 

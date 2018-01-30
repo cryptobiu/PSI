@@ -62,12 +62,25 @@ PartyR::PartyR(int numOfItems, int groupNum, string myIp,  string otherIp,int my
     zRows.resize(numOfItems);
     for(int i=0; i<numOfItems; i++){
 
-        tRows[i].resize(SIZE_OF_NEEDED_BYTES);
-        uRows[i].resize(SIZE_OF_NEEDED_BYTES);
-        zRows[i].resize(SIZE_OF_NEEDED_BYTES);
+        tRows[i].resize(SIZE_SPLIT_FIELD_BYTES);
+        uRows[i].resize(SIZE_SPLIT_FIELD_BYTES);
+        zRows[i].resize(SIZE_SPLIT_FIELD_BYTES);
 
 
     }
+
+    tSplitRows.resize(NUM_OF_SPLITS);
+
+    for(int s=0; s<NUM_OF_SPLITS;s++) {
+
+        tSplitRows[s].resize(numOfItems);
+        for (int i = 0; i < numOfItems; i++) {
+            tSplitRows[s][i].resize(SIZE_SPLIT_FIELD_BYTES);
+
+        }
+
+    }
+
 
     zSha.resize(numOfItems*hash.getHashedMsgSize());
     tSha.resize(numOfItems);
@@ -201,14 +214,18 @@ void PartyR::buildPolinomial(int split){
     //go over each column and encrypt each input for each column
     for(int i=0; i<SPLIT_FIELD_SIZE_BITS; i++){
 
-        key = SecretKey(T.data() + 16 * i, 16, "aes");
+        key = SecretKey(T.data() + 16 * (SPLIT_FIELD_SIZE_BITS*split + i), 16, "aes");
+
+        //cout<<"keyt "<<i<<" " <<(int)key.getEncoded()[0]<<endl;
 
         aesArr[SPLIT_FIELD_SIZE_BITS*split + i].setKey(key);
         //aes.setKey(key);
 
         aesArr[SPLIT_FIELD_SIZE_BITS*split + i].optimizedCompute(partialInputsAsBytesArr, tbitArr[SPLIT_FIELD_SIZE_BITS*split + i]);
 
-        key = SecretKey(U.data() + 16 * i, 16, "aes");
+        key = SecretKey(U.data() + 16 * (SPLIT_FIELD_SIZE_BITS*split + i), 16, "aes");
+
+        //cout<<"keyu "<<i<<" " <<(int)key.getEncoded()[0]<<endl;
         aesArr[SPLIT_FIELD_SIZE_BITS*split + i].setKey(key);
         //aes.setKey(key);
 
@@ -230,44 +247,61 @@ void PartyR::buildPolinomial(int split){
     unsigned long temp = 0;
     vector<vector<byte>> tempArr(numOfItems);
 
+    all = scapi_now();
+//#pragma omp parallel for
+    for(int i=0; i<numOfItems; i++) {
+        tempArr[i].resize(SIZE_SPLIT_FIELD_BYTES);
+        fill(tRows[i].begin(), tRows[i].end(), 0);
+        fill(uRows[i].begin(), uRows[i].end(), 0);
+    }
 
 //#pragma omp parallel for
-    for(int i=0; i<numOfItems; i++)
-        tempArr[i].resize(SIZE_SPLIT_FIELD_BYTES);
-
-
-    all = scapi_now();
-#pragma omp parallel for
 
     //extract a single bit from each 128 bit cipher
-    for(int i=0; i<numOfItems;i++){
+    for (int j = 0; j < SPLIT_FIELD_SIZE_BITS; j++) {//go column by column instead of row by row for performance
+        for(int i=0; i<numOfItems;i++) {
 
-        for(int j=0; j<SPLIT_FIELD_SIZE_BITS; j++){
-
+//
             //get first byte from the entires encryption
-            temp = tbitArr[SPLIT_FIELD_SIZE_BITS*split+ j][i*16] & 1;
+            temp = tbitArr[SPLIT_FIELD_SIZE_BITS * split + j][i * 16] & 1;
+
 
             //get the bit in the right position
-            tRows[i][(SPLIT_FIELD_SIZE_BITS*split+ j)/8] += (temp<<((SPLIT_FIELD_SIZE_BITS*split+ j)%8));//TODO consider shifting
+            tRows[i][j / 8] += (temp << (j % 8));//TODO consider shifting
+
 
 
             //get first byte from the entires encryption
-            temp = ubitArr[SPLIT_FIELD_SIZE_BITS*split+ j][i*16] & 1;
+            temp = ubitArr[SPLIT_FIELD_SIZE_BITS * split + j][i * 16] & 1;
 
             //get the bit in the right position
-            uRows[i][(SPLIT_FIELD_SIZE_BITS*split+ j)/8] += (temp<<((SPLIT_FIELD_SIZE_BITS*split+ j)%8));
+            uRows[i][j / 8] += (temp << (j % 8));
 
         }
+    }
+
+    end = std::chrono::system_clock::now();
+    elapsed_ms = std::chrono::duration_cast<std::chrono::milliseconds>(end - all).count();
+    cout << "   PartyR - extract bits took " << elapsed_ms << " milliseconds" << endl;
+
+    all = scapi_now();
+    for(int i=0; i<numOfItems;i++){
+//        cout<<"temp t" <<i<< " " << (int)(tRows[i][0]&1)<< "   ";
+//        cout<<"temp u" <<i<< " " << (int)(uRows[i][0]&1);
+//        cout<<endl;
 
 
         //TODO check vectorization
         //TODO consider using unsigned long since there is a lower bound of 60 bits for a field
         for(int j=0; j<SIZE_SPLIT_FIELD_BYTES; j++){
-            tempArr[i][j] = tRows[i][SIZE_SPLIT_FIELD_BYTES*split+ j] ^ uRows[i][SIZE_SPLIT_FIELD_BYTES*split+ j];
+            tempArr[i][j] = tRows[i][j] ^ uRows[i][j];
 
-//            cout<<(int) tRows[i][j] << " - ";
+            //cout<<(int) tRows[i][j] << " - ";
         }
-//        cout<<endl;
+       // cout<<endl;
+
+        tSplitRows[split][i] = tRows[i];
+
 
         ZZ zz;
 
@@ -280,7 +314,7 @@ void PartyR::buildPolinomial(int split){
 
     end = std::chrono::system_clock::now();
     elapsed_ms = std::chrono::duration_cast<std::chrono::milliseconds>(end - all).count();
-    cout << "   PartyR - extract bits took " << elapsed_ms << " milliseconds" << endl;
+    cout << "   PartyR - generate y's took " << elapsed_ms << " milliseconds" << endl;
 
 
     //interpolate on input,y cordinates
@@ -345,11 +379,16 @@ void PartyR::calcHashValues() {
     int sizeOfHashedMsg = hash.getHashedMsgSize();
 
     vector<byte> element;
-    for(int i=0; i < tRows.size(); i++){
+    for(int i=0; i < numOfItems; i++){
 
 
         tSha[i].resize(sizeOfHashedMsg);
-        hash.update(tRows[i], 0, SIZE_OF_NEEDED_BYTES);
+
+        for(int s=0;s<NUM_OF_SPLITS;s++){
+            //update the hash
+            hash.update(tSplitRows[s][i], 0, SIZE_SPLIT_FIELD_BYTES);
+        }
+
         //TODO take only the required amout of bytes, consider using a single unsigned long in case only up to 64 bits are enough
         hash.hashFinal(tSha[i], 0);
     }
@@ -438,7 +477,7 @@ void PartyR::calcOutput(){
 //
 //            if( zElement==tSha[j]){ //vector of byte equal
 //
-//                //cout<<"found a match for index "<< i  <<   " and index "<<j<<endl;
+//                cout<<"found a match for index "<< i  <<   " and index "<<j<<endl;
 //            }
 //        }
 //    }

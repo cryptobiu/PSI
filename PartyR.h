@@ -29,6 +29,7 @@ class PartyR {
     vector<byte> T;//the first array for the input of the ot's
     vector<byte> U;//the second array for the input of the ot's
     vector<vector<byte>>tRows;
+    vector<vector<vector<byte>>>tSplitRows;
     vector<vector<byte>>uRows;
     vector<vector<byte>>zRows;
 

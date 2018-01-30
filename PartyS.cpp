@@ -69,13 +69,18 @@ PartyS::PartyS(int numOfItems, int groupNum, string myIp,  string otherIp, int m
 
     //field = new TemplateField<ZpMersenneLongElement>(0);
 
-    qRows.resize(numOfItems);
-    zRows.resize(numOfItems);
+    qRows.resize(NUM_OF_SPLITS);
+    zRows.resize(NUM_OF_SPLITS);
 
+    for(int s=0; s<NUM_OF_SPLITS;s++) {
 
-    for(int i=0; i<numOfItems; i++){
-        qRows[i].resize(SIZE_OF_NEEDED_BYTES);
-        zRows[i].resize(SIZE_OF_NEEDED_BYTES);
+        qRows[s].resize(numOfItems);
+        zRows[s].resize(numOfItems);
+        for (int i = 0; i < numOfItems; i++) {
+            qRows[s][i].resize(SIZE_OF_NEEDED_BYTES);
+            zRows[s][i].resize(SIZE_OF_NEEDED_BYTES);
+
+        }
 
     }
     zSha.resize(numOfItems*hash.getHashedMsgSize());
@@ -150,18 +155,20 @@ void PartyS::chooseS(int size){
 
     s.resize(SIZE_OF_NEEDED_BITS);//each bit is represened by byte
 
-    byte * buf = new byte[SIZE_SPLIT_FIELD_BYTES*NUM_OF_SPLITS];
-    if (!RAND_bytes(buf, (size+7)/8)){
+    byte * buf = new byte[SIZE_OF_NEEDED_BYTES];
+    if (!RAND_bytes(buf, SIZE_OF_NEEDED_BYTES)){
 
         cout<<"failed to create"<<endl;
     }
 
 
 //    for(int i=0;i<s.size(); i++)
-//        s[i] = 1;
+//        s[i] = 0;
     //go over all the random bytes and set each random bit to a byte containing 0 or 1 for the OT
 
     sElements[0] = 0;
+
+    int index=0;
 
     for(int split = 0; split<NUM_OF_SPLITS; split++) {
 
@@ -171,12 +178,14 @@ void PartyS::chooseS(int size){
             for (int j = 0; j < 8; j++) {
 
                 //get the relevant bit from the random byte
-                if (i * 8 + j < SPLIT_FIELD_SIZE_BITS)
-                    s[(split*SPLIT_FIELD_SIZE_BITS)+i * 8 + j] = (buf[i] >> j) & 1;
+                if (i * 8 + j < SPLIT_FIELD_SIZE_BITS) {
+                    s[index] = (buf[(split * SIZE_SPLIT_FIELD_BYTES) + i] >> j) & 1;
+                    index++;
+                }
 
 
             }
-            ((byte *) sElements.data())[split*SIZE_SPLIT_FIELD_BYTES + i] = buf[i];
+            ((byte *) sElements.data())[split*SIZE_SPLIT_FIELD_BYTES + i] = buf[(split*SIZE_SPLIT_FIELD_BYTES)+i];
         }
     }
 
@@ -247,7 +256,10 @@ void PartyS::prepareQ() {//build the rows ti and ui
 
     aesArr.resize(SIZE_OF_NEEDED_BITS);
     for(int i=0; i<SIZE_OF_NEEDED_BITS; i++) {
+
         key = SecretKey(Q.data() + 16 * i, 16, "aes");
+
+        //cout<<"keyt "<<i<<" " << (int)key.getEncoded()[0]<<endl;
         aesArr[i].setKey(key);
 
     }
@@ -268,21 +280,30 @@ void PartyS::prepareQ() {//build the rows ti and ui
 
     //extract each bit to get the entire row of bits
     byte temp = 0;
-    for(int i=0; i < numOfItems; i++){
+    for(int s=0; s<NUM_OF_SPLITS;s++) {
+        for(int i=0; i < numOfItems; i++){
 
-        //init the value
-        //qRows[i][j] = 0;
-        for(int j=0; j<SIZE_OF_NEEDED_BITS; j++){
 
-            //get first bit from the entires encryption
-            temp = qbitArr[j][i * 16] & 1;
 
-            //get the bit in the right position
-            qRows[i][j / 8] += (temp << (j % 8));
+            //init the value
+            //qRows[i][j] = 0;
+            for (int j = 0; j < SPLIT_FIELD_SIZE_BITS; j++) {
 
+                //get first bit from the entires encryption
+                temp = qbitArr[SPLIT_FIELD_SIZE_BITS*s+j][i * 16] & 1;
+
+
+                //get the bit in the right position
+                qRows[s][i][j / 8] += (temp << (j % 8));
+
+            }
+
+//            cout<<"temp q" <<i<< " " << (int)(qRows[s][i][0]&1);
+//            cout<<endl;
         }
 
     }
+
 }
 
 void PartyS::setInputsToByteVector(int offset, int numOfItemsToConvert, vector<byte> & inputsAsBytesArr) {
@@ -312,7 +333,10 @@ void PartyS::sendHashValues(){
 
 
     for(int i=0; i<numOfItems; i++) {
-        hash.update(zRows[i], 0, SIZE_OF_NEEDED_BYTES);
+        //update the hash
+        for(int s=0; s<NUM_OF_SPLITS;s++)
+            hash.update(zRows[s][i], 0, SIZE_SPLIT_FIELD_BYTES);
+
         hash.hashFinal(zSha, i * sizeOfHashedMsg);
     }
 
@@ -348,12 +372,15 @@ void PartyS::evalAndSet(int split)  {//eval all points
 
         for(int j=0; j<SIZE_SPLIT_FIELD_BYTES; j++) {
 
-            zRows[i][SIZE_SPLIT_FIELD_BYTES*split + j] = qRows[i][SIZE_SPLIT_FIELD_BYTES*split+j] ^ (evaluatedElem[j] & sElements[SIZE_SPLIT_FIELD_BYTES*split+j]);
+            zRows[split][i][j] = qRows[split][i][j] ^ (evaluatedElem[j] & sElements[SIZE_SPLIT_FIELD_BYTES*split + j]);
 
-//            cout<<(int) zRows[i][j] << " - ";
+            //cout<<(int) zRows[split][i][j] << " - ";
 
         }
-//        cout<<endl;
+
+
+
+        //cout<<endl;
 
 
 

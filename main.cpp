@@ -12,7 +12,7 @@ int main(int argc, char* argv[]) {
 
     if (partyNum == 0) {
         // create Party one with the previous created objects.
-        PartyR pR(10000, groupNum);
+        PartyR pR(1000000, groupNum);
 
         auto all = scapi_now();
         pR.runProtocol();
@@ -22,7 +22,7 @@ int main(int argc, char* argv[]) {
     }
     else if (partyNum == 1) {
         auto all = scapi_now();
-        PartyS pS(10000, groupNum);
+        PartyS pS(1000000, groupNum);
         pS.runProtocol();
         auto end = std::chrono::system_clock::now();
         int elapsed_ms = std::chrono::duration_cast<std::chrono::milliseconds>(end - all).count();
