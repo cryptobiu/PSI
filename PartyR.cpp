@@ -33,15 +33,15 @@ PartyR::PartyR(int numOfItems, int groupNum, string myIp,  string otherIp,int my
 
     //use an additional bit in order to make sure that u^t will be in the field for sure.
     ZZ prime;
-    GenGermainPrime(prime, SIZE_OF_NEEDED_BITS+1);
+    GenGermainPrime(prime, SPLIT_FIELD_SIZE_BITS+1);
 
     ZZ_p::init(ZZ(prime));
 
-    byte primeBytes[SIZE_OF_NEEDED_BITS/8+1];
+    byte primeBytes[SPLIT_FIELD_SIZE_BITS/8+1];
     //send the zp prime to the other party
-    BytesFromZZ(primeBytes,prime,SIZE_OF_NEEDED_BITS/8+1);
+    BytesFromZZ(primeBytes,prime,SPLIT_FIELD_SIZE_BITS/8+1);
 
-    channel->write(primeBytes, SIZE_OF_NEEDED_BITS/8+1);
+    channel->write(primeBytes, SPLIT_FIELD_SIZE_BITS/8+1);
     cout<<"prime is" <<prime<<endl;
 
 
@@ -81,6 +81,9 @@ PartyR::PartyR(int numOfItems, int groupNum, string myIp,  string otherIp,int my
         ubitArr[i].resize(16*numOfItems);
     }
 
+
+    aesArr.resize(SIZE_OF_NEEDED_BITS);
+
     getInput();
 
 }
@@ -108,7 +111,7 @@ void PartyR::runProtocol(){
 
 
         all = scapi_now();
-        buildPolinomial();
+        buildPolinomial(i);
         end = std::chrono::system_clock::now();
         elapsed_ms = std::chrono::duration_cast<std::chrono::milliseconds>(end - all).count();
         cout << "PartyR - buildPolinomial took " << elapsed_ms << " milliseconds" << endl;
@@ -171,19 +174,11 @@ void PartyR::runOT(){
 
 }
 
-void PartyR::buildPolinomial(){
+void PartyR::buildPolinomial(int split){
 
      //build the rows ti and ui
 
     auto all = scapi_now();
-
-//#pragma omp parallel for
-
-
-    auto end = std::chrono::system_clock::now();
-    int elapsed_ms = std::chrono::duration_cast<std::chrono::milliseconds>(end - all).count();
-    cout << "   PartyR - resize arrays " << elapsed_ms << " milliseconds" << endl;
-
 
     all = scapi_now();
 
@@ -193,7 +188,7 @@ void PartyR::buildPolinomial(){
     OpenSSLAES aes;
     SecretKey key;
 
-    aesArr.resize(SIZE_OF_NEEDED_BITS);
+
 
 
 
@@ -204,28 +199,28 @@ void PartyR::buildPolinomial(){
     //TODO do just the needed columns for the split
 
     //go over each column and encrypt each input for each column
-    for(int i=0; i<SIZE_OF_NEEDED_BITS; i++){
+    for(int i=0; i<SPLIT_FIELD_SIZE_BITS; i++){
 
         key = SecretKey(T.data() + 16 * i, 16, "aes");
 
-        aesArr[i].setKey(key);
+        aesArr[SPLIT_FIELD_SIZE_BITS*split + i].setKey(key);
         //aes.setKey(key);
 
-        aesArr[i].optimizedCompute(partialInputsAsBytesArr, tbitArr[i]);
+        aesArr[SPLIT_FIELD_SIZE_BITS*split + i].optimizedCompute(partialInputsAsBytesArr, tbitArr[SPLIT_FIELD_SIZE_BITS*split + i]);
 
         key = SecretKey(U.data() + 16 * i, 16, "aes");
-        aesArr[i].setKey(key);
+        aesArr[SPLIT_FIELD_SIZE_BITS*split + i].setKey(key);
         //aes.setKey(key);
 
-        aesArr[i].optimizedCompute(partialInputsAsBytesArr, ubitArr[i]);
+        aesArr[SPLIT_FIELD_SIZE_BITS*split + i].optimizedCompute(partialInputsAsBytesArr, ubitArr[SPLIT_FIELD_SIZE_BITS*split + i]);
     }
 
 
 
     //Poly::interpolateMersenne(polyP, inputs, yArr);
 
-    end = std::chrono::system_clock::now();
-    elapsed_ms = std::chrono::duration_cast<std::chrono::milliseconds>(end - all).count();
+    auto end = std::chrono::system_clock::now();
+    auto elapsed_ms = std::chrono::duration_cast<std::chrono::milliseconds>(end - all).count();
     cout << "   PartyR - calc PRF " << elapsed_ms << " milliseconds" << endl;
 
 
@@ -235,38 +230,40 @@ void PartyR::buildPolinomial(){
     unsigned long temp = 0;
     vector<vector<byte>> tempArr(numOfItems);
 
-    all = scapi_now();
-//#pragma omp parallel for
-    for(int i=0; i<numOfItems; i++)
-        tempArr[i].resize(SIZE_OF_NEEDED_BYTES);
 
 //#pragma omp parallel for
+    for(int i=0; i<numOfItems; i++)
+        tempArr[i].resize(SIZE_SPLIT_FIELD_BYTES);
+
+
+    all = scapi_now();
+#pragma omp parallel for
 
     //extract a single bit from each 128 bit cipher
     for(int i=0; i<numOfItems;i++){
 
-        for(int j=0; j<SIZE_OF_NEEDED_BITS; j++){
+        for(int j=0; j<SPLIT_FIELD_SIZE_BITS; j++){
 
             //get first byte from the entires encryption
-            temp = tbitArr[j][i*16] & 1;
+            temp = tbitArr[SPLIT_FIELD_SIZE_BITS*split+ j][i*16] & 1;
 
             //get the bit in the right position
-            tRows[i][j/8] += (temp<<(j%8));//TODO consider shifting
+            tRows[i][(SPLIT_FIELD_SIZE_BITS*split+ j)/8] += (temp<<((SPLIT_FIELD_SIZE_BITS*split+ j)%8));//TODO consider shifting
 
 
             //get first byte from the entires encryption
-            temp = ubitArr[j][i*16] & 1;
+            temp = ubitArr[SPLIT_FIELD_SIZE_BITS*split+ j][i*16] & 1;
 
             //get the bit in the right position
-            uRows[i][j/8] += (temp<<(j%8));
+            uRows[i][(SPLIT_FIELD_SIZE_BITS*split+ j)/8] += (temp<<((SPLIT_FIELD_SIZE_BITS*split+ j)%8));
 
         }
 
 
         //TODO check vectorization
         //TODO consider using unsigned long since there is a lower bound of 60 bits for a field
-        for(int j=0; j<SIZE_OF_NEEDED_BYTES; j++){
-            tempArr[i][j] = tRows[i][j] ^ uRows[i][j];
+        for(int j=0; j<SIZE_SPLIT_FIELD_BYTES; j++){
+            tempArr[i][j] = tRows[i][SIZE_SPLIT_FIELD_BYTES*split+ j] ^ uRows[i][SIZE_SPLIT_FIELD_BYTES*split+ j];
 
 //            cout<<(int) tRows[i][j] << " - ";
         }
@@ -275,7 +272,7 @@ void PartyR::buildPolinomial(){
         ZZ zz;
 
         //translate the bytes into a ZZ element
-        ZZFromBytes(zz, tempArr[i].data(), SIZE_OF_NEEDED_BYTES);
+        ZZFromBytes(zz, tempArr[i].data(), SIZE_SPLIT_FIELD_BYTES);
 
         //set the y value for the interpolation
         yArr[i] =  to_ZZ_p(zz);
@@ -320,10 +317,10 @@ void PartyR::setInputsToByteVector(int offset, int numOfItemsToConvert, vector<b
 
 void PartyR::sendCoeffs(){
 
-    vector<byte> bytesArr(numOfItems*SIZE_OF_NEEDED_BYTES);
+    vector<byte> bytesArr(numOfItems*SIZE_SPLIT_FIELD_BYTES);
 
     //translate the polynomial to bytes.
-    ZZ_pxToBytes(polyP, bytesArr.data(), numOfItems, SIZE_OF_NEEDED_BYTES);
+    ZZ_pxToBytes(polyP, bytesArr.data(), numOfItems, SIZE_SPLIT_FIELD_BYTES);
 
     //send the interpolated polynomial
     channel->write((byte*) bytesArr.data(), bytesArr.size());

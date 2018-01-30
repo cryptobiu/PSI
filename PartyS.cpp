@@ -50,13 +50,13 @@ PartyS::PartyS(int numOfItems, int groupNum, string myIp,  string otherIp, int m
 //    ZZ_p::init(ZZ(number));
 
     //use
-    byte primeBytes[SIZE_OF_NEEDED_BITS/8+1];
-    channel->read(primeBytes, SIZE_OF_NEEDED_BITS/8+1);
+    byte primeBytes[SPLIT_FIELD_SIZE_BITS/8+1];
+    channel->read(primeBytes, SPLIT_FIELD_SIZE_BITS/8+1);
 
 
     ZZ prime;
 
-    ZZFromBytes(prime, primeBytes, SIZE_OF_NEEDED_BITS/8+1);
+    ZZFromBytes(prime, primeBytes, SPLIT_FIELD_SIZE_BITS/8+1);
 
 
     ZZ_p::init(ZZ(prime));
@@ -223,11 +223,11 @@ void PartyS::recieveCoeffs(int split){
 
     //recieve the coefficients from R
 
-    vector<byte> polyBytes(numOfItems*SIZE_OF_NEEDED_BYTES);
+    vector<byte> polyBytes(numOfItems*SIZE_SPLIT_FIELD_BYTES);
 
     channel->read((byte*)polyBytes.data(), polyBytes.size());
 
-    BytesToZZ_px(polyBytes.data(), polyP, numOfItems, SIZE_OF_NEEDED_BYTES);
+    BytesToZZ_px(polyBytes.data(), polyP, numOfItems, SIZE_SPLIT_FIELD_BYTES);
 
     //cout<<polyP;
 

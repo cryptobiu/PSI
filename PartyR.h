@@ -59,7 +59,7 @@ public:
 
     void runOT();
 
-    void buildPolinomial();
+    void buildPolinomial(int split);
 
     void sendCoeffs();
 
