@@ -29,9 +29,9 @@ class PartyR {
     vector<byte> T;//the first array for the input of the ot's
     vector<byte> U;//the second array for the input of the ot's
     vector<vector<byte>>tRows;
-    vector<vector<vector<byte>>>tSplitRows;
-    vector<vector<byte>>uRows;
-    vector<vector<byte>>zRows;
+    vector<vector<vector<byte>>>tSplitRows;//TODO use better data structures to keep data sequential
+    vector<vector<byte>>uRows;//TODO use better data structures to keep data sequential
+    vector<vector<byte>>zRows;//TODO use better data structures to keep data sequential
 
     OpenSSLSHA256 hash;//consider using a weaker hash
     vector<OpenSSLAES> aesArr;//array that holds an aes encryptor for each bit
@@ -40,6 +40,11 @@ class PartyR {
 
     vector<vector<byte>>tbitArr;
     vector<vector<byte>>ubitArr;
+
+
+    vector<ZZ_pX> interpolateTree;//for interpolation
+    vector<ZZ_p> interpolatePoints;
+    vector<ZZ_pX> interpolateTemp;
 
 
 
@@ -59,6 +64,8 @@ public:
     void runProtocol();
 
     void runOT();
+
+    void prepareInterpolateValues();
 
     void buildPolinomial(int split);
 

@@ -6,7 +6,7 @@
 #include "Defines.h"
 #include "Poly.h"
 #include "tests_zp.h"
-#include "utils_zp.h"
+#include "zp.h"
 #include <omp.h>
 
 PartyR::PartyR(int numOfItems, int groupNum, string myIp,  string otherIp,int myPort, int otherPort): numOfItems(numOfItems) {
@@ -97,6 +97,12 @@ PartyR::PartyR(int numOfItems, int groupNum, string myIp,  string otherIp,int my
 
     aesArr.resize(SIZE_OF_NEEDED_BITS);
 
+
+    interpolateTree.resize(numOfItems * 2 - 1);
+    interpolatePoints.resize(numOfItems);
+    interpolateTemp.resize(numOfItems * 2 - 1);
+
+
     getInput();
 
 }
@@ -119,6 +125,12 @@ void PartyR::runProtocol(){
     auto end = std::chrono::system_clock::now();
     int elapsed_ms = std::chrono::duration_cast<std::chrono::microseconds>(end - all).count();
     cout << "PartyR - runOT took " << elapsed_ms << " microseconds" << endl;
+
+    all = scapi_now();
+    prepareInterpolateValues();
+    end = std::chrono::system_clock::now();
+    elapsed_ms = std::chrono::duration_cast<std::chrono::microseconds>(end - all).count();
+    cout << "PartyR - prepareInterpolateValues took " << elapsed_ms << " microseconds" << endl;
 
     for(int i=0; i<NUM_OF_SPLITS; i++) {
 
@@ -186,7 +198,11 @@ void PartyR::runOT(){
 
 
 }
+void PartyR::prepareInterpolateValues(){
 
+    prepareForInterpolate(inputs.data(), numOfItems-1, interpolateTree.data(), interpolatePoints.data());
+
+}
 void PartyR::buildPolinomial(int split){
 
      //build the rows ti and ui
@@ -325,7 +341,7 @@ void PartyR::buildPolinomial(int split){
 
     //TODO  -- major buttleneck, break into thread (c++11 threads with affinity).
     //TODO  -- A better underlying library should be used. Currently this takes too much time. All other optimizations will not be noticable at this stage.
-    interpolate_zp(polyP, inputs.data(), yArr.data(), numOfItems - 1);
+    iterative_interpolate_zp(polyP, interpolateTemp.data(),  yArr.data(), interpolatePoints.data(), interpolateTree.data(), 2*numOfItems - 1);
     //test_interpolation_result_zp(polyP, inputs.data(), yArr.data(), numOfItems - 1);
     end = std::chrono::system_clock::now();
     elapsed_ms = std::chrono::duration_cast<std::chrono::milliseconds>(end - all).count();

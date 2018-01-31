@@ -9,6 +9,7 @@
 #include "Defines.h"
 #include "Poly.h"
 #include "tests_zp.h"
+#include "zp.h"
 #include "NTL/ZZ.h"
 #include <omp.h>
 
@@ -96,6 +97,11 @@ PartyS::PartyS(int numOfItems, int groupNum, string myIp,  string otherIp, int m
 
     sElements.resize(SIZE_OF_NEEDED_BYTES);
 
+
+    evalTree.resize(numOfItems * 2 - 1);
+    evalRemainder.resize(numOfItems * 2 - 1);
+
+
     getInput();
 
 }
@@ -127,6 +133,7 @@ void PartyS::runProtocol(){
     cout << "PartyS - runOT took " << elapsed_ms << " microseconds" << endl;
 
     prepareQ();
+    prepareEvalValues();
 
     for(int i=0; i<NUM_OF_SPLITS; i++) {
         all = scapi_now();
@@ -222,7 +229,11 @@ void PartyS::runOT() {
 
 
 }
+void PartyS::prepareEvalValues(){
 
+    build_tree(evalTree.data(), inputs.data(), 2*numOfItems -1);
+
+}
 
 void PartyS::recieveCoeffs(int split){
 
@@ -359,8 +370,11 @@ void PartyS::sendHashValues(){
 
 }
 
-void PartyS::evalAndSet(int split)  {//eval all points
-    multipoint_evaluate_zp(polyP, inputs.data(), yArr.data(), numOfItems - 1);
+void PartyS::evalAndSet(int split)  {
+
+    //eval all points
+    //multipoint_evaluate_zp(polyP, inputs.data(), yArr.data(), numOfItems - 1);
+    evaluate(polyP, evalTree.data(), evalRemainder.data(), 2*numOfItems - 1, yArr.data());
     vector<byte> evaluatedElem(SIZE_SPLIT_FIELD_BYTES);
 
     for(int i=0; i < numOfItems; i++){

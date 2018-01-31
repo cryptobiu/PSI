@@ -143,38 +143,3 @@ void recursive_interpolate_zp(ZZ_pX& resultP, unsigned int root, ZZ_p* x, ZZ_p* 
 }
 
 
-void BytesToZZ_px(unsigned char *bytesArr, ZZ_pX& poly, long numOfElements, long sizeOfElement){
-
-    //turn each byte to zz_p element in a vector
-
-    vec_ZZ repFromBytes;
-    repFromBytes.SetLength(numOfElements);
-
-    for(int i=0; i<numOfElements; i++){
-
-        ZZ zz;
-
-        //translate the bytes into a ZZ element
-        ZZFromBytes(zz, bytesArr + i*sizeOfElement, sizeOfElement);
-
-        repFromBytes[i] = zz;
-    }
-
-
-    //turn the vec_zzp to the polynomial
-
-    poly = to_ZZ_pX(to_vec_ZZ_p(repFromBytes));
-
-
-}
-void ZZ_pxToBytes(ZZ_pX& poly, unsigned char *bytesArr, long numOfElements, long sizeOfElement){
-
-    //get the zz_p vector
-
-    for(int i=0; i<numOfElements; i++){
-
-        BytesFromZZ(bytesArr + i*sizeOfElement ,rep(poly.rep[i]),sizeOfElement);
-    }
-
-
-}

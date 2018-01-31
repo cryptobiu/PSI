@@ -26,8 +26,8 @@ class PartyS {
     vector<byte> sElements;
     vector<byte> Q;//the results for the ot's
     vector<vector<byte>>qbitArr;
-    vector<vector<vector<byte>>>qRows;
-    vector<vector<vector<byte>>>zRows;
+    vector<vector<vector<byte>>>qRows;//TODO use better data structures to keep data sequential
+    vector<vector<vector<byte>>>zRows;//TODO use better data structures to keep data sequential
 
     OpenSSLSHA256 hash;
 
@@ -35,6 +35,11 @@ class PartyS {
     vector<byte> zSha;
 
     ZZ_pX polyP;//the polinomial from the interpolation
+
+
+    vector<ZZ_pX> evalTree; //holds the tree for all slices
+    vector<ZZ_pX> evalRemainder;
+
 
     OTBatchReceiver * otReceiver;			//The OT object that used in the protocol.
 
@@ -53,6 +58,9 @@ private:
     void chooseS(int size);
 
     void runOT();
+
+    void prepareEvalValues();
+
 
     void recieveCoeffs(int split);
 
