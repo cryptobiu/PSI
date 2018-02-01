@@ -8,8 +8,8 @@ int main(int argc, char* argv[]) {
 //    ZZ_p::init(ZZ(2305843009213693951));
 //
 //
-//    //test_multipoint_eval_zp(ZZ(2305843009213693951), 99);
-//    test_interpolate_zp(ZZ(2305843009213693951), 99);
+//    test_multipoint_eval_zp(ZZ(2305843009213693951), 99);
+//    //test_interpolate_zp(ZZ(2305843009213693951), 999);
 //
 //
 //    vector<ZZ_pX> evalTree; //holds the tree for all slices
@@ -28,8 +28,8 @@ int main(int argc, char* argv[]) {
 //        inputs[i] = to_ZZ_p(ZZ(i));
 //
 //    }
-
-
+//
+//
 //    steady_clock::time_point begin1 = steady_clock::now();
 //
 //    build_tree(evalTree.data(), inputs.data(), 2*numOfItems -1);
@@ -48,7 +48,7 @@ int main(int argc, char* argv[]) {
 
     if (partyNum == 0) {
         // create Party one with the previous created objects.
-        PartyR pR(100, groupNum);
+        PartyR pR(1000000, groupNum);
 
         auto all = scapi_now();
         pR.runProtocol();
@@ -58,7 +58,7 @@ int main(int argc, char* argv[]) {
     }
     else if (partyNum == 1) {
         auto all = scapi_now();
-        PartyS pS(100, groupNum);
+        PartyS pS(100000, groupNum);
         pS.runProtocol();
         auto end = std::chrono::system_clock::now();
         int elapsed_ms = std::chrono::duration_cast<std::chrono::milliseconds>(end - all).count();
