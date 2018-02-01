@@ -165,14 +165,14 @@ void generateSubTreeArrays (vector<vector<int>> &subArrays, int totalNodes, int 
 
             //cout << subArrays[i][j] << "-";
         }
-        //cout << "size of first array" << subArrays[i].size() << endl;
+        cout << "size of first array" << subArrays[i].size() << endl;
         //cout << "-------------------" << endl;
 
     }
 
 }
 
-void buildSubTree (ZZ_pX* tree, vector<int> subTree) {
+void buildSubTree (ZZ_pX* tree, vector<int> &subTree) {
 
 
     //cout<<"Thread indices";
@@ -187,7 +187,7 @@ void buildSubTree (ZZ_pX* tree, vector<int> subTree) {
 
 }
 
-void interSubTree (ZZ_pX* temp, ZZ_pX* M,  vector<int> subTree) {
+void interSubTree (ZZ_pX* temp, ZZ_pX* M,  vector<int> &subTree) {
 
 
     //cout<<"Thread indices";
@@ -200,6 +200,22 @@ void interSubTree (ZZ_pX* temp, ZZ_pX* M,  vector<int> subTree) {
 
         temp[index] = temp[LEFT(index)] * M[RIGHT(index)] + temp[RIGHT(index)] * M[LEFT(index)] ;
 
+    }
+
+}
+
+void evalSubTree (ZZ_pX* reminders, ZZ_pX* tree,  vector<int> &subTree) {
+
+
+    //cout<<"Thread indices";
+    ZZ_p::init(ZZ(2305843009213693951));
+    int index;
+
+    unsigned int i = 1;
+    for (i=0; i<subTree.size(); i++) {
+        index = subTree[i];
+//        cout << "i="<<i <<": ";
+        reminders[index] = reminders[PAPA(index)]%tree[index];
     }
 
 }
@@ -242,11 +258,37 @@ void evaluate (ZZ_pX& P, ZZ_pX* tree, ZZ_pX* reminders , unsigned int tree_size,
 
     reminders[0] = P%tree[0];
 
-    unsigned int i = 1;
-    for (; i<tree_size; i++) {
+
+    auto begin1 = steady_clock::now();
+    int numThreads = 2;
+    vector<vector<int>> subs(numThreads);
+    generateSubTreeArrays(subs, tree_size, numThreads-1);
+    auto end1 = steady_clock::now();
+    cout << "Building tree - generate sub trees: " << duration_cast<milliseconds>(end1 - begin1).count() << " ms" << endl;
+
+
+
+    for (int i=1; i<numThreads-1; i++) {
 //        cout << "i="<<i <<": ";
         reminders[i] = reminders[PAPA(i)]%tree[i];
     }
+
+
+    begin1 = steady_clock::now();
+    vector<thread> threads(numThreads);
+
+    for (int t=0; t<numThreads; t++) {
+
+        threads[t] = thread(&evalSubTree, reminders, tree, ref(subs[t]));
+
+
+    }
+
+
+    for (int t=0; t<numThreads; t++){
+        threads[t].join();
+    }
+
 
     unsigned int result_index;
     for (int i=tree_size/2; i<tree_size; i++) {
@@ -280,7 +322,7 @@ void multipoint_evaluate_zp(ZZ_pX& P, ZZ_p* x, ZZ_p* y, long degree)
     steady_clock::time_point begin1 = steady_clock::now();
     build_tree (p_tree, x, degree*2+1);
     steady_clock::time_point end1 = steady_clock::now();
-    test_tree(p_tree[0], x, degree+1);
+    //test_tree(p_tree[0], x, degree+1);
 
     ZZ_pX* reminders = new ZZ_pX[degree*2+1];
     steady_clock::time_point begin2 = steady_clock::now();
