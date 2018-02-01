@@ -32,17 +32,17 @@ PartyR::PartyR(int numOfItems, int groupNum, string myIp,  string otherIp,int my
 
 
     //use an additional bit in order to make sure that u^t will be in the field for sure.
-    ZZ prime;
-    GenGermainPrime(prime, SPLIT_FIELD_SIZE_BITS+1);
-
-    ZZ_p::init(ZZ(prime));
-
-    byte primeBytes[SPLIT_FIELD_SIZE_BITS/8+1];
-    //send the zp prime to the other party
-    BytesFromZZ(primeBytes,prime,SPLIT_FIELD_SIZE_BITS/8+1);
-
-    channel->write(primeBytes, SPLIT_FIELD_SIZE_BITS/8+1);
-    cout<<"prime is" <<prime<<endl;
+//    ZZ prime;
+//    GenGermainPrime(prime, SPLIT_FIELD_SIZE_BITS+1);
+//
+//    ZZ_p::init(ZZ(prime));
+//
+//    byte primeBytes[SPLIT_FIELD_SIZE_BITS/8+1];
+//    //send the zp prime to the other party
+//    BytesFromZZ(primeBytes,prime,SPLIT_FIELD_SIZE_BITS/8+1);
+//
+//    channel->write(primeBytes, SPLIT_FIELD_SIZE_BITS/8+1);
+//    cout<<"prime is" <<prime<<endl;
 
 
 //    string str("170141183460469231731687303715884105727");
@@ -50,7 +50,7 @@ PartyR::PartyR(int numOfItems, int groupNum, string myIp,  string otherIp,int my
 //    ZZ_p::init(ZZ(number));
 
     //ZZ_p::init(ZZ(1739458288095207497));
-    //ZZ_p::init(ZZ(2305843009213693951));
+    ZZ_p::init(ZZ(2305843009213693951));
 
 
 
@@ -498,7 +498,7 @@ void PartyR::calcOutput(){
 //        }
 //    }
 //
-//
+
 
 
 

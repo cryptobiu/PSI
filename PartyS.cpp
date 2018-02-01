@@ -42,7 +42,7 @@ PartyS::PartyS(int numOfItems, int groupNum, string myIp,  string otherIp, int m
 //
 //    cout<<"prime is" <<prime<<endl;
 
-   // ZZ_p::init(ZZ(2305843009213693951));
+    ZZ_p::init(ZZ(2305843009213693951));
 
     //ZZ_p::init(ZZ(1739458288095207497));
 
@@ -51,20 +51,20 @@ PartyS::PartyS(int numOfItems, int groupNum, string myIp,  string otherIp, int m
 //    ZZ_p::init(ZZ(number));
 
     //use
-    byte primeBytes[SPLIT_FIELD_SIZE_BITS/8+1];
-    channel->read(primeBytes, SPLIT_FIELD_SIZE_BITS/8+1);
-
-
-    ZZ prime;
-
-    ZZFromBytes(prime, primeBytes, SPLIT_FIELD_SIZE_BITS/8+1);
-
-
-    ZZ_p::init(ZZ(prime));
-
-
-
-    cout<<"prime" << prime;
+////    byte primeBytes[SPLIT_FIELD_SIZE_BITS/8+1];
+////    channel->read(primeBytes, SPLIT_FIELD_SIZE_BITS/8+1);
+////
+////
+////    ZZ prime;
+////
+////    ZZFromBytes(prime, primeBytes, SPLIT_FIELD_SIZE_BITS/8+1);
+////
+////
+////    ZZ_p::init(ZZ(prime));
+//
+//
+//
+//    cout<<"prime" << prime;
 
 
 
