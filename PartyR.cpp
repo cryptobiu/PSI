@@ -58,17 +58,17 @@ PartyR::PartyR(int argc, char* argv[]): Party(argc, argv) {
     subTaskNames.push_back("CalcOutput");
     timer = new Measurement("PSI", 0, 2, times, subTaskNames);
     //use an additional bit in order to make sure that u^t will be in the field for sure.
-//    ZZ prime;
-//    GenGermainPrime(prime, SPLIT_FIELD_SIZE_BITS+1);
-//
-//    ZZ_p::init(ZZ(prime));
-//
-//    byte primeBytes[SPLIT_FIELD_SIZE_BITS/8+1];
-//    //send the zp prime to the other party
-//    BytesFromZZ(primeBytes,prime,SPLIT_FIELD_SIZE_BITS/8+1);
-//
-//    channel->write(primeBytes, SPLIT_FIELD_SIZE_BITS/8+1);
-//    cout<<"prime is" <<prime<<endl;
+
+    GenGermainPrime(prime, SPLIT_FIELD_SIZE_BITS+1);
+
+    ZZ_p::init(ZZ(prime));
+
+    byte primeBytes[SIZE_SPLIT_FIELD_BYTES];
+    //send the zp prime to the other party
+    BytesFromZZ(primeBytes,prime,SIZE_SPLIT_FIELD_BYTES);
+
+    channel->write(primeBytes, SIZE_SPLIT_FIELD_BYTES);
+    cout<<"prime is" <<prime<<endl;
 
 
 //    string str("170141183460469231731687303715884105727");
@@ -76,7 +76,7 @@ PartyR::PartyR(int argc, char* argv[]): Party(argc, argv) {
 //    ZZ_p::init(ZZ(number));
 
 
-    ZZ_p::init(ZZ(2305843009213693951));
+    //ZZ_p::init(ZZ(2305843009213693951));
 
 
 
@@ -303,7 +303,7 @@ void PartyR::runOT(){
 }
 void PartyR::prepareInterpolateValues(){
 
-    prepareForInterpolate(inputs.data(), numOfItems-1, interpolateTree.data(), interpolatePoints.data());
+    prepareForInterpolate(inputs.data(), numOfItems-1, interpolateTree.data(), interpolatePoints.data(),numOfThreads,prime);
 
 }
 void PartyR::buildPolinomial(int split){
@@ -444,7 +444,7 @@ void PartyR::buildPolinomial(int split){
 
     //TODO  -- major buttleneck, break into thread (c++11 threads with affinity).
     //TODO  -- A better underlying library should be used. Currently this takes too much time. All other optimizations will not be noticable at this stage.
-    iterative_interpolate_zp(polyP, interpolateTemp.data(),  yArr.data(), interpolatePoints.data(), interpolateTree.data(), 2*numOfItems - 1);
+    iterative_interpolate_zp(polyP, interpolateTemp.data(),  yArr.data(), interpolatePoints.data(), interpolateTree.data(), 2*numOfItems - 1, numOfThreads, prime);
     //test_interpolation_result_zp(polyP, inputs.data(), yArr.data(), numOfItems - 1);
     end = std::chrono::system_clock::now();
     elapsed_ms = std::chrono::duration_cast<std::chrono::milliseconds>(end - all).count();

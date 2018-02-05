@@ -28,6 +28,7 @@ protected:
     int times;  //Number of times to execute the protocol
     int currentIteration = 0; //Current iteration number
 
+
     vector<ZZ_p> inputs;//the elements to check the intersection
     int numOfItems;//the size of the set
 
@@ -40,6 +41,9 @@ protected:
 
     ZZ_pX polyP;//the elements to check the intersection
 
+    ZZ prime;
+
+    int numOfThreads;
     int NUM_OF_SPLITS;  //break the computation so at each round we only do SPLIT_FIELD_SIZE bits. This way
                         //the interpolation is broken into parts and there will be much less idle time on both sides.
                         //interpolation running time of R can be used to eval the current polynomial and do some other

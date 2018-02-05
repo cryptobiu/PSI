@@ -7,6 +7,7 @@
 Party::Party(int argc, char* argv []) : Protocol("PSI", argc, argv){
     numOfItems = stoi(arguments["numOfItems"]);
     times = stoi(arguments["internalIterationsNumber"]);
+    numOfThreads = stoi(arguments["numOfThreads"]);
 
     NUM_OF_SPLITS = stoi(arguments["numOfSplits"]);
     SPLIT_FIELD_SIZE_BITS = stoi(arguments["fieldSize"]);

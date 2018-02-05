@@ -66,13 +66,13 @@ PartyS::PartyS(int argc, char* argv[] ) : Party(argc, argv){
     timer = new Measurement("PSI", 1, 2, times, subTaskNames);
 
 //
-//    GenPrime(prime, 400);
+//    GenPrime(prime, SPLIT_FIELD_SIZE_BITS);
 //
 //    ZZ_p::init(ZZ(prime));
 //
 //    cout<<"prime is" <<prime<<endl;
 
-    ZZ_p::init(ZZ(2305843009213693951));
+    //ZZ_p::init(ZZ(2305843009213693951));
 
     //ZZ_p::init(ZZ(1739458288095207497));
 
@@ -81,16 +81,14 @@ PartyS::PartyS(int argc, char* argv[] ) : Party(argc, argv){
 //    ZZ_p::init(ZZ(number));
 
     //use
-////    byte primeBytes[SPLIT_FIELD_SIZE_BITS/8+1];
-////    channel->read(primeBytes, SPLIT_FIELD_SIZE_BITS/8+1);
-////
-////
-////    ZZ prime;
-////
-////    ZZFromBytes(prime, primeBytes, SPLIT_FIELD_SIZE_BITS/8+1);
-////
-////
-////    ZZ_p::init(ZZ(prime));
+    byte primeBytes[SIZE_SPLIT_FIELD_BYTES];
+    channel->read(primeBytes, SIZE_SPLIT_FIELD_BYTES);
+
+
+    ZZFromBytes(prime, primeBytes, SIZE_SPLIT_FIELD_BYTES);
+
+
+    ZZ_p::init(ZZ(prime));
 //
 //
 //
@@ -339,7 +337,7 @@ void PartyS::runOT() {
 }
 void PartyS::prepareEvalValues(){
 
-    build_tree(evalTree.data(), inputs.data(), 2*numOfItems -1);
+    build_tree(evalTree.data(), inputs.data(), 2*numOfItems -1, numOfThreads, prime);
 
 }
 
@@ -480,9 +478,10 @@ void PartyS::sendHashValues(){
 
 void PartyS::evalAndSet(int split)  {
 
+    //ZZ prime(2305843009213693951);
     //eval all points
     //multipoint_evaluate_zp(polyP, inputs.data(), yArr.data(), numOfItems - 1);
-    evaluate(polyP, evalTree.data(), evalRemainder.data(), 2*numOfItems - 1, yArr.data());
+    evaluate(polyP, evalTree.data(), evalRemainder.data(), 2*numOfItems - 1, yArr.data(), numOfThreads, prime);
     vector<byte> evaluatedElem(SIZE_SPLIT_FIELD_BYTES);
 
     for(int i=0; i < numOfItems; i++){

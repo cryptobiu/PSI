@@ -62,7 +62,7 @@ void build_tree_main(ZZ_pX* tree, ZZ_p* points, unsigned int tree_size) {
 
 }
 
-void build_tree(ZZ_pX* tree, ZZ_p* points, unsigned int tree_size) {
+void build_tree(ZZ_pX* tree, ZZ_p* points, unsigned int tree_size, int numThreads, ZZ &prime) {
 
     ZZ_p negated;
     int i;// = tree_size-1;
@@ -84,7 +84,6 @@ void build_tree(ZZ_pX* tree, ZZ_p* points, unsigned int tree_size) {
     cout << "Building tree - first part: " << duration_cast<milliseconds>(end1 - begin1).count() << " ms" << endl;
 
     begin1 = steady_clock::now();
-    int numThreads = 4;
     vector<vector<int>> subs(numThreads);
     generateSubTreeArrays(subs, tree_size/2, numThreads-1);
     end1 = steady_clock::now();
@@ -110,7 +109,7 @@ void build_tree(ZZ_pX* tree, ZZ_p* points, unsigned int tree_size) {
 
     for (int t=0; t<numThreads; t++) {
 
-        threads[t] = thread(&buildSubTree, tree, ref(subs[t]));
+        threads[t] = thread(&buildSubTree, tree, ref(subs[t]),ref(prime));
     }
 
     for (int t=0; t<numThreads; t++){
@@ -129,7 +128,7 @@ void build_tree(ZZ_pX* tree, ZZ_p* points, unsigned int tree_size) {
         for(int j=pow(2,i)-1; j<=pow(2,i+1)-2; j++){
             //cout<<" index to process is "<< j<<endl;
 
-            threadsLastPart[j] = thread(&buildTreeSpecific,tree, j);
+            threadsLastPart[j] = thread(&buildTreeSpecific,tree, j, ref(prime));
         }
 
         for(int j=pow(2,i)-1; j<=pow(2,i+1)-2; j++){
@@ -196,11 +195,11 @@ void generateSubTreeArrays (vector<vector<int>> &subArrays, int totalNodes, int 
 
 }
 
-void buildSubTree (ZZ_pX* tree, vector<int> &subTree) {
+void buildSubTree (ZZ_pX* tree, vector<int> &subTree, ZZ &prime) {
 
 
     //cout<<"Thread indices";
-    ZZ_p::init(ZZ(2305843009213693951));
+    ZZ_p::init(prime);
     int index;
     for (int i=subTree.size()-1; i>=0; i--) {
         index = subTree[i];
@@ -211,11 +210,11 @@ void buildSubTree (ZZ_pX* tree, vector<int> &subTree) {
 
 }
 
-void interSubTree (ZZ_pX* temp, ZZ_pX* M,  vector<int> &subTree) {
+void interSubTree (ZZ_pX* temp, ZZ_pX* M,  vector<int> &subTree, ZZ &prime) {
 
 
     //cout<<"Thread indices";
-    ZZ_p::init(ZZ(2305843009213693951));
+    ZZ_p::init(prime);
     int index;
     for (int i=subTree.size()-1; i>=0; i--) {
         index = subTree[i];
@@ -228,11 +227,11 @@ void interSubTree (ZZ_pX* temp, ZZ_pX* M,  vector<int> &subTree) {
 
 }
 
-void evalSubTree (ZZ_pX* reminders, ZZ_pX* tree,  vector<int> &subTree) {
+void evalSubTree (ZZ_pX* reminders, ZZ_pX* tree,  vector<int> &subTree, ZZ &prime) {
 
 
     //cout<<"Thread indices";
-    ZZ_p::init(ZZ(2305843009213693951));
+    ZZ_p::init(prime);
     int index;
 
     unsigned int i = 1;
@@ -277,18 +276,29 @@ void evaluate_main (ZZ_pX& P, ZZ_pX* tree, ZZ_pX* reminders , unsigned int tree_
 }
 
 
-void evaluate (ZZ_pX& P, ZZ_pX* tree, ZZ_pX* reminders , unsigned int tree_size, ZZ_p* results) {
+void evaluate (ZZ_pX& P, ZZ_pX* tree, ZZ_pX* reminders , unsigned int tree_size, ZZ_p* results, int numThreads, ZZ &prime) {
 
     auto begin1 = steady_clock::now();
     //set the reminder of the root
-    reminders[0] = P%tree[0];
+    //reminders[0] = P%tree[0];
+    //reminders[0] = P;
+    reminders[1] = P;
+    reminders[2] = P;
+
+
     auto end1 = steady_clock::now();
     cout << "eval - not paralleled "<<" threads " << duration_cast<milliseconds>(end1 - begin1).count() << " ms" << endl;
 
+//    print_poly(tree[0]);
+//
+//    cout<<endl<<"---Reminder"<<endl;
+//    print_poly(reminders[0]);
+//
+//    cout<<endl<<"---P"<<endl;
+//    print_poly(P);
 
 
     begin1 = steady_clock::now();
-    int numThreads = 4;
     vector<vector<int>> subs(numThreads);
     generateSubTreeArrays(subs, tree_size, numThreads-1);
     end1 = steady_clock::now();
@@ -298,12 +308,13 @@ void evaluate (ZZ_pX& P, ZZ_pX* tree, ZZ_pX* reminders , unsigned int tree_size,
     begin1 = steady_clock::now();
     vector<thread> threadsFirstPart(numThreads*2);
 
-    for(int i=1; i<log2(numThreads); i++){
+    for(int i=2; i<log2(numThreads); i++){
         //cout<<"layer "<<i<< " : " <<endl;
         for(int j=pow(2,i)-1; j<=pow(2,i+1)-2; j++){
             //cout<<" index to process is "<< j<<endl;
 
-            threadsFirstPart[j] = thread(&evalReminder,tree, reminders, j);
+            threadsFirstPart[j] = thread(&evalReminder,tree, reminders, j,ref(prime));
+
         }
 
         for(int j=pow(2,i)-1; j<=pow(2,i+1)-2; j++){
@@ -322,7 +333,7 @@ void evaluate (ZZ_pX& P, ZZ_pX* tree, ZZ_pX* reminders , unsigned int tree_size,
 
     for (int t=0; t<numThreads; t++) {
 
-        threads[t] = thread(&evalSubTree, reminders, tree, ref(subs[t]));
+        threads[t] = thread(&evalSubTree, reminders, tree, ref(subs[t]),ref(prime));
 
 
     }
@@ -347,18 +358,18 @@ void evaluate (ZZ_pX& P, ZZ_pX* tree, ZZ_pX* reminders , unsigned int tree_size,
 
 }
 
-void evalReminder(ZZ_pX *tree, ZZ_pX *reminders, int i) {
-    ZZ_p::init(ZZ(2305843009213693951));
+void evalReminder(ZZ_pX *tree, ZZ_pX *reminders, int i, ZZ &prime) {
+    ZZ_p::init(prime);
     reminders[i] = reminders[PAPA(i)]%tree[i];
 }
 
-void interSpecific(ZZ_pX *temp, ZZ_pX *M, int i) {
-    ZZ_p::init(ZZ(2305843009213693951));
+void interSpecific(ZZ_pX *temp, ZZ_pX *M, int i, ZZ &prime) {
+    ZZ_p::init(prime);
     temp[i] = temp[LEFT(i)] * M[RIGHT(i)] + temp[RIGHT(i)] * M[LEFT(i)] ;
 }
 
-void buildTreeSpecific(ZZ_pX *tree, int i) {
-    ZZ_p::init(ZZ(2305843009213693951));
+void buildTreeSpecific(ZZ_pX *tree, int i, ZZ &prime) {
+    ZZ_p::init(prime);
     tree[i] = tree[LEFT(i)]*tree[RIGHT(i)];
 }
 
@@ -379,19 +390,19 @@ void test_evaluate(ZZ_pX& P, ZZ_p* points, ZZ_p* results, unsigned int npoints) 
 }
 
 
-void multipoint_evaluate_zp(ZZ_pX& P, ZZ_p* x, ZZ_p* y, long degree)
+void multipoint_evaluate_zp(ZZ_pX& P, ZZ_p* x, ZZ_p* y, long degree, int numThreads, ZZ &prime)
 {
 //    cout << "P:" <<endl; print_poly(P); cout << endl;
     // we want to evaluate P on 'degree+1' values.
     ZZ_pX* p_tree = new ZZ_pX[degree*2+1];
     steady_clock::time_point begin1 = steady_clock::now();
-    build_tree (p_tree, x, degree*2+1);
+    build_tree (p_tree, x, degree*2+1,numThreads, prime);
     steady_clock::time_point end1 = steady_clock::now();
     //test_tree(p_tree[0], x, degree+1);
 
     ZZ_pX* reminders = new ZZ_pX[degree*2+1];
     steady_clock::time_point begin2 = steady_clock::now();
-    evaluate(P, p_tree, reminders, degree*2+1, y);
+    evaluate(P, p_tree, reminders, degree*2+1, y, numThreads,prime);
     chrono::steady_clock::time_point end2 = steady_clock::now();
 
 
@@ -404,7 +415,7 @@ void multipoint_evaluate_zp(ZZ_pX& P, ZZ_p* x, ZZ_p* y, long degree)
 }
 
 
-void test_multipoint_eval_zp(ZZ prime, long degree)
+void test_multipoint_eval_zp(ZZ prime, long degree, int numThreads)
 {
     // init underlying prime field
     ZZ_p::init(ZZ(prime));
@@ -422,7 +433,7 @@ void test_multipoint_eval_zp(ZZ prime, long degree)
         random(x[i]);
     }
 
-    multipoint_evaluate_zp(P, x, y, degree);
+    multipoint_evaluate_zp(P, x, y, degree, numThreads, prime);
 }
 
 
@@ -449,7 +460,7 @@ void iterative_interpolate_zp_main(ZZ_pX& resultP, ZZ_pX* temp, ZZ_p* y, ZZ_p* a
     resultP = temp[LEFT(0)] * M[RIGHT(0)] + temp[RIGHT(0)] * M[LEFT(0)] ;
 }
 
-void iterative_interpolate_zp(ZZ_pX& resultP, ZZ_pX* temp, ZZ_p* y, ZZ_p* a, ZZ_pX* M, unsigned int tree_size)
+void iterative_interpolate_zp(ZZ_pX& resultP, ZZ_pX* temp, ZZ_p* y, ZZ_p* a, ZZ_pX* M, unsigned int tree_size, int numThreads, ZZ &prime)
 {
     unsigned int i = tree_size-1;
     ZZ_p inv_a;
@@ -461,7 +472,6 @@ void iterative_interpolate_zp(ZZ_pX& resultP, ZZ_pX* temp, ZZ_p* y, ZZ_p* a, ZZ_
     }
 
     auto begin1 = steady_clock::now();
-    int numThreads = 4;
     vector<vector<int>> subs(numThreads);
     generateSubTreeArrays(subs, tree_size/2, numThreads-1);
     auto end1 = steady_clock::now();
@@ -473,7 +483,7 @@ void iterative_interpolate_zp(ZZ_pX& resultP, ZZ_pX* temp, ZZ_p* y, ZZ_p* a, ZZ_
 
     for (int t=0; t<numThreads; t++) {
 
-        threads[t] = thread(&interSubTree, temp, M, ref(subs[t]));
+        threads[t] = thread(&interSubTree, temp, M, ref(subs[t]), ref(prime));
 
 
     }
@@ -504,7 +514,7 @@ void iterative_interpolate_zp(ZZ_pX& resultP, ZZ_pX* temp, ZZ_p* y, ZZ_p* a, ZZ_
         for(int j=pow(2,i)-1; j<=pow(2,i+1)-2; j++){
             //cout<<" index to process is "<< j<<endl;
 
-            threadsLastPart[j] = thread(&interSpecific,temp, M, j);
+            threadsLastPart[j] = thread(&interSpecific,temp, M, j, ref(prime));
         }
 
         for(int j=pow(2,i)-1; j<=pow(2,i+1)-2; j++){
@@ -528,19 +538,19 @@ void iterative_interpolate_zp(ZZ_pX& resultP, ZZ_pX* temp, ZZ_p* y, ZZ_p* a, ZZ_
 }
 
 
-void interpolate_zp(ZZ_pX& resultP, ZZ_p* x, ZZ_p* y, long degree)
+void interpolate_zp(ZZ_pX& resultP, ZZ_p* x, ZZ_p* y, long degree, int numThreads, ZZ &prime)
 {
     system_clock::time_point begin[4];
     system_clock::time_point end[4];
     ZZ_pX *M = new ZZ_pX[degree * 2 + 1];;
     ZZ_p *a = new ZZ_p[degree + 1];;
 
-    prepareForInterpolate(x, degree, M, a);
+    prepareForInterpolate(x, degree, M, a, numThreads, prime);
 
     //now we can apply the formula
     ZZ_pX* temp = new ZZ_pX[degree*2+1];
     begin[4] = system_clock::now();
-    iterative_interpolate_zp(resultP, temp, y, a, M, degree*2+1);
+    iterative_interpolate_zp(resultP, temp, y, a, M, degree*2+1, numThreads, prime);
     end[4] = system_clock::now();
 
 
@@ -548,14 +558,14 @@ void interpolate_zp(ZZ_pX& resultP, ZZ_p* x, ZZ_p* y, long degree)
     cout << "Total: " << duration_cast<milliseconds>(end[1]-begin[1] + end[2]-begin[2] + end[3]-begin[3] + end[4]-begin[4]).count() << " ms" << endl;
 }
 
-void prepareForInterpolate(ZZ_p *x, long degree, ZZ_pX *M, ZZ_p *a) {
+void prepareForInterpolate(ZZ_p *x, long degree, ZZ_pX *M, ZZ_p *a, int numThreads, ZZ &prime) {
 
     system_clock::time_point begin[4];
     system_clock::time_point end[4];
 
     begin[1] = system_clock::now();
     //we first build the tree of the super modulibegin[1]= system_clock::now();
-    build_tree(M,x, degree*2+1);
+    build_tree(M,x, degree*2+1, numThreads, prime);
     end[1] = system_clock::now();
 //    test_tree(M[0], x, degree+1);
 
@@ -568,7 +578,7 @@ void prepareForInterpolate(ZZ_p *x, long degree, ZZ_pX *M, ZZ_p *a) {
     //evaluate d(x) to obtain the results in the array a
     ZZ_pX* reminders = new ZZ_pX[degree*2+1];
     begin[3] = system_clock::now();
-    evaluate(D, M, reminders, degree*2+1, a);
+    evaluate(D, M, reminders, degree*2+1, a, numThreads, prime);
     end[3] = system_clock::now();
 //    test_evaluate(D,x,a,degree+1);
 
@@ -593,7 +603,7 @@ void test_interpolation_result_zp(ZZ_pX& P, ZZ_p* x, ZZ_p* y, long degree)
     cout << "Polynomial is interpolated correctly!" << endl;
 }
 
-void test_interpolate_zp(ZZ prime, long degree)
+void test_interpolate_zp(ZZ prime, long degree, int numThreads)
 {
     // init underlying prime field
     ZZ_p::init(ZZ(prime));
@@ -607,7 +617,7 @@ void test_interpolate_zp(ZZ prime, long degree)
     }
 
     ZZ_pX P;
-    interpolate_zp(P, x, y, degree);
+    interpolate_zp(P, x, y, degree, numThreads, prime);
     //cout << "P: "; print_poly(P); cout << endl;
     //test_interpolation_result_zp(P, x, y, degree);
 }
