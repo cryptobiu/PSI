@@ -13,27 +13,57 @@
 #include "NTL/ZZ.h"
 #include <omp.h>
 
-PartyS::PartyS(int numOfItems, int groupNum, string myIp,  string otherIp, int myPort ,int otherPort ): numOfItems(numOfItems){
+PartyS::PartyS(int argc, char* argv[] ) : Party(argc, argv){
 
 
 
     auto start = scapi_now();
-    SocketPartyData me(IpAddress::from_string(myIp), myPort+100*groupNum);
-    SocketPartyData other(IpAddress::from_string(otherIp), otherPort+100*groupNum);
-    channel = make_shared<CommPartyTCPSynced>(io_service, me, other);
-    boost::thread t(boost::bind(&boost::asio::io_service::run, &io_service));
-    print_elapsed_ms(start, "PartyS: Init");
+    auto groupNum = stoi(arguments["groupID"]);
 
+    //open parties file
+    ConfigFile cf(arguments["partiesFile"].c_str());
+
+    string receiver_ip, sender_ip;
+    int receiver_port, sender_port;
+
+    //get partys IPs and ports data
+    sender_port = stoi(cf.Value("", "party_0_port"));
+    sender_ip = cf.Value("", "party_0_ip");
+    receiver_port = stoi(cf.Value("", "party_1_port"));
+    receiver_ip = cf.Value("", "party_1_ip");
+
+    SocketPartyData me(IpAddress::from_string(receiver_ip), receiver_port+100*groupNum);
+
+    SocketPartyData other(IpAddress::from_string(sender_ip), sender_port+100*groupNum);
+    channel = make_shared<CommPartyTCPSynced>(io_service, me, other);
+
+    sender_port++;
 
     // create the OT receiver.
-    start = scapi_now();
-    SocketPartyData senderParty(IpAddress::from_string(otherIp), 7766+100*groupNum);
-
+    SocketPartyData senderParty(IpAddress::from_string(sender_ip), sender_port + 100*groupNum);
     otReceiver = new OTExtensionBristolReceiver(senderParty.getIpAddress().to_string(), senderParty.getPort(), true, channel);
-    print_elapsed_ms(start, "PartyTwo: creating OTSemiHonestExtensionReceiver");
 
+//    SocketPartyData me(IpAddress::from_string(arguments["myIP"]), stoi(arguments["myPort"])+100*groupNum);
+//    SocketPartyData other(IpAddress::from_string(arguments["otherIP"]), stoi(arguments["otherPort"])+100*groupNum);
+//
+//    channel = make_shared<CommPartyTCPSynced>(io_service, me, other);
+//    boost::thread t(boost::bind(&boost::asio::io_service::run, &io_service));
+//
+//    // create the OT receiver.
+//    start = scapi_now();
+//    SocketPartyData senderParty(IpAddress::from_string(arguments["otherIP"]), 7766+100*groupNum);
+//    otReceiver = new OTExtensionBristolReceiver(senderParty.getIpAddress().to_string(), senderParty.getPort(), true, channel);
+//
     // connect to party one
     channel->join(500, 5000);
+
+    vector<string> subTaskNames{"Offline", "ChooseS", "RunOT", "Online", "PrepareQ", "PrepareEvalValues"};
+    for (int i=0; i<NUM_OF_SPLITS; i++){
+        subTaskNames.push_back("ReceiveCoeffs");
+        subTaskNames.push_back("EvalAndSet");
+    }
+    subTaskNames.push_back("SendHashValues");
+    timer = new Measurement("PSI", 1, 2, times, subTaskNames);
 
 //
 //    GenPrime(prime, 400);
@@ -121,39 +151,117 @@ void PartyS::runProtocol(){
 
 
     auto all = scapi_now();
+    timer->startSubTask(0, currentIteration);
+    timer->startSubTask(1, currentIteration);
     chooseS(SIZE_OF_NEEDED_BITS);//this can be done in preprocessing
+    timer->endSubTask(1, currentIteration);
     auto end = std::chrono::system_clock::now();
     int elapsed_ms = std::chrono::duration_cast<std::chrono::microseconds>(end - all).count();
     cout << "PartyS - chooseS took " << elapsed_ms << " microseconds" << endl;
 
     all = scapi_now();
+    timer->startSubTask(2, currentIteration);
     runOT();//this can be done in preprocessing
+    timer->endSubTask(2, currentIteration);
+    timer->endSubTask(0, currentIteration); //end of offline
     end = std::chrono::system_clock::now();
     elapsed_ms = std::chrono::duration_cast<std::chrono::microseconds>(end - all).count();
     cout << "PartyS - runOT took " << elapsed_ms << " microseconds" << endl;
 
+    timer->startSubTask(3, currentIteration);
+    timer->startSubTask(4, currentIteration);
     prepareQ();
+    timer->endSubTask(4, currentIteration);
+    timer->startSubTask(5, currentIteration);
     prepareEvalValues();
+    timer->endSubTask(5, currentIteration);
 
     for(int i=0; i<NUM_OF_SPLITS; i++) {
         all = scapi_now();
+        timer->startSubTask(6 + i*2, currentIteration);
         recieveCoeffs(i);
+        timer->endSubTask(6 + i*2, currentIteration);
         end = std::chrono::system_clock::now();
         elapsed_ms = std::chrono::duration_cast<std::chrono::milliseconds>(end - all).count();
         cout << "PartyS - recieveCoeffs took " << elapsed_ms << " milliseconds" << endl;
 
         all = scapi_now();
+        timer->startSubTask(7 + i*2, currentIteration);
         evalAndSet(i);
+        timer->endSubTask(7 + i*2, currentIteration);
         end = std::chrono::system_clock::now();
         elapsed_ms = std::chrono::duration_cast<std::chrono::milliseconds>(end - all).count();
         cout << "PartyS - evalAndSet took " << elapsed_ms << " milliseconds" << endl;
         all = scapi_now();
     }
+    timer->startSubTask(6 + NUM_OF_SPLITS*2, currentIteration);
     sendHashValues();
+    timer->endSubTask(6 + NUM_OF_SPLITS*2, currentIteration);
+    timer->endSubTask(3, currentIteration); //end of online
     end = std::chrono::system_clock::now();
     elapsed_ms = std::chrono::duration_cast<std::chrono::milliseconds>(end - all).count();
     cout << "PartyS - sendHashValues took " << elapsed_ms << " milliseconds" << endl;
 
+
+}
+
+void PartyS::runOnline() {
+    std::chrono::time_point<std::chrono::system_clock> all, end;
+    int elapsed_ms;
+    timer->startSubTask(3, currentIteration);
+    timer->startSubTask(4, currentIteration);
+    prepareQ();
+    timer->endSubTask(4, currentIteration);
+    timer->startSubTask(5, currentIteration);
+    prepareEvalValues();
+    timer->endSubTask(5, currentIteration);
+
+    for(int i=0; i<NUM_OF_SPLITS; i++) {
+        all = scapi_now();
+        timer->startSubTask(6 + i*2, currentIteration);
+        recieveCoeffs(i);
+        timer->endSubTask(6 + i*2, currentIteration);
+        end = std::chrono::system_clock::now();
+        elapsed_ms = std::chrono::duration_cast<std::chrono::milliseconds>(end - all).count();
+        cout << "PartyS - recieveCoeffs took " << elapsed_ms << " milliseconds" << endl;
+
+        all = scapi_now();
+        timer->startSubTask(7 + i*2, currentIteration);
+        evalAndSet(i);
+        timer->endSubTask(7 + i*2, currentIteration);
+        end = std::chrono::system_clock::now();
+        elapsed_ms = std::chrono::duration_cast<std::chrono::milliseconds>(end - all).count();
+        cout << "PartyS - evalAndSet took " << elapsed_ms << " milliseconds" << endl;
+        all = scapi_now();
+    }
+    timer->startSubTask(6 + NUM_OF_SPLITS*2, currentIteration);
+    sendHashValues();
+    timer->endSubTask(6 + NUM_OF_SPLITS*2, currentIteration);
+    timer->endSubTask(3, currentIteration); //end of online
+    end = std::chrono::system_clock::now();
+    elapsed_ms = std::chrono::duration_cast<std::chrono::milliseconds>(end - all).count();
+    cout << "PartyS - sendHashValues took " << elapsed_ms << " milliseconds" << endl;
+
+}
+
+void PartyS::runOffline() {
+    auto all = scapi_now();
+    timer->startSubTask(0, currentIteration);
+    timer->startSubTask(1, currentIteration);
+    chooseS(SIZE_OF_NEEDED_BITS);//this can be done in preprocessing
+    timer->endSubTask(1, currentIteration);
+    auto end = std::chrono::system_clock::now();
+    int elapsed_ms = std::chrono::duration_cast<std::chrono::microseconds>(end - all).count();
+    cout << "PartyS - chooseS took " << elapsed_ms << " microseconds" << endl;
+
+    all = scapi_now();
+    timer->startSubTask(2, currentIteration);
+    runOT();//this can be done in preprocessing
+    timer->endSubTask(2, currentIteration);
+    timer->endSubTask(0, currentIteration); //end of offline
+    end = std::chrono::system_clock::now();
+    elapsed_ms = std::chrono::duration_cast<std::chrono::microseconds>(end - all).count();
+    cout << "PartyS - runOT took " << elapsed_ms << " microseconds" << endl;
 
 }
 

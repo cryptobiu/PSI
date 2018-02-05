@@ -8,19 +8,20 @@
 #include "../../include/interactive_mid_protocols/OTExtensionBristol.hpp"
 #include "../../include/primitives/Mersenne.hpp"
 #include "../../include/primitives/PrfOpenSSL.hpp"
+#include "Party.h"
 #include <NTL/ZZ_p.h>
 #include <NTL/ZZ_pX.h>
 
 
 
-class PartyS {
+class PartyS : public Party{
 
-    boost::asio::io_service io_service;
-    shared_ptr<CommParty> channel;				//The channel between both parties.
+//    boost::asio::io_service io_service;
+//    shared_ptr<CommParty> channel;				//The channel between both parties.
     //TemplateField<ZpMersenneLongElement> *field;
 
-    vector<ZZ_p> inputs;//the elements to check the intersection
-    int numOfItems;//the size of the set
+//    vector<ZZ_p> inputs;//the elements to check the intersection
+//    int numOfItems;//the size of the set
 
     vector<byte> s;//the random bits for the ot's
     vector<byte> sElements;
@@ -29,12 +30,12 @@ class PartyS {
     vector<vector<vector<byte>>>qRows;//TODO use better data structures to keep data sequential
     vector<vector<vector<byte>>>zRows;//TODO use better data structures to keep data sequential
 
-    OpenSSLSHA256 hash;
+//    OpenSSLSHA256 hash;
 
-    vector<OpenSSLAES> aesArr;
-    vector<byte> zSha;
+//    vector<OpenSSLAES> aesArr;
+//    vector<byte> zSha;
 
-    ZZ_pX polyP;//the polinomial from the interpolation
+//    ZZ_pX polyP;//the polinomial from the interpolation
 
 
     vector<ZZ_pX> evalTree; //holds the tree for all slices
@@ -43,15 +44,30 @@ class PartyS {
 
     OTBatchReceiver * otReceiver;			//The OT object that used in the protocol.
 
-    vector<ZZ_p> xArr;
-    vector<ZZ_p> yArr;
+//    vector<ZZ_p> yArr;
 
 public:
-    PartyS(int numOfItems, int groupNum, string myIp = "127.0.0.1",  string otherIp = "127.0.0.1", int myPort = 1212,int otherPort = 1213);
+    PartyS(int argc, char* argv[]);//int numOfItems, int groupNum, string myIp = "127.0.0.1",  string otherIp = "127.0.0.1", int myPort = 1212,int otherPort = 1213);
 
-
+    ~PartyS(){
+        io_service.stop();
+        delete timer;
+    }
 
     void runProtocol();
+
+    /**
+    * Runs the protocol.
+    */
+    void run() override {
+        for (currentIteration = 0; currentIteration<times; currentIteration++){
+            runOffline();
+            runOnline();
+        }
+    }
+
+    void runOnline() override;
+    void runOffline() override;
 
 private:
 

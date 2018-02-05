@@ -9,28 +9,54 @@
 #include "zp.h"
 #include <omp.h>
 
-PartyR::PartyR(int numOfItems, int groupNum, string myIp,  string otherIp,int myPort, int otherPort): numOfItems(numOfItems) {
-
+PartyR::PartyR(int argc, char* argv[]): Party(argc, argv) {
     auto start = scapi_now();
+
+    auto groupNum = stoi(arguments["groupID"]);
+
+    //open parties file
+    ConfigFile cf(arguments["partiesFile"].c_str());
+
+    string receiver_ip, sender_ip;
+    int receiver_port, sender_port;
+
+    //get partys IPs and ports data
+    sender_port = stoi(cf.Value("", "party_0_port"));
+    sender_ip = cf.Value("", "party_0_ip");
+    receiver_port = stoi(cf.Value("", "party_1_port"));
+    receiver_ip = cf.Value("", "party_1_ip");
+
+    cout<<"sender ip: "<<sender_ip <<"port:"<<sender_port<<endl;
+    cout<<"receiver ip: "<<receiver_ip<<"port:"<<receiver_port<<endl;
+    SocketPartyData me(IpAddress::from_string(sender_ip), sender_port + 100*groupNum);
+    sender_port++;
+
+    SocketPartyData other(IpAddress::from_string(receiver_ip), receiver_port + 100*groupNum);
+    cout<<"my ip: "<<me.getIpAddress() <<"port:"<<me.getPort()<<endl;
+    cout<<"other ip: "<<other.getIpAddress() <<"port:"<<other.getPort()<<endl;
+    channel = make_shared<CommPartyTCPSynced>(io_service, me, other);
     //SocketPartyData me(IpAddress::from_string("127.0.0.1"), 1213 +100*groupNum);
-    SocketPartyData me(IpAddress::from_string(myIp), myPort +100*groupNum);
+//    SocketPartyData me(IpAddress::from_string(arguments["myIP"]), stoi(arguments["myPort"]) +100*groupNum);
 
    // SocketPartyData other(IpAddress::from_string("127.0.0.1"), 1212+100*groupNum);
-    SocketPartyData other(IpAddress::from_string(otherIp), otherPort+100*groupNum);
+//    SocketPartyData other(IpAddress::from_string(arguments["otherIP"]), stoi(arguments["otherPort"])+100*groupNum);
 
-    cout << "my ip: " << me.getIpAddress() << "port:" << me.getPort() << endl;
-    cout << "other ip: " << other.getIpAddress() << "port:" << other.getPort() << endl;
-    channel = make_shared<CommPartyTCPSynced>(io_service, me, other);
-    print_elapsed_ms(start, "PartyR: Init");
+//    channel = make_shared<CommPartyTCPSynced>(io_service, me, other);
 
-    SocketPartyData senderParty(IpAddress::from_string("127.0.0.1"), 7766+100*groupNum);
-    cout<<"sender ip: "<<senderParty.getIpAddress() <<"port:"<<senderParty.getPort()<<endl;
+    SocketPartyData senderParty(IpAddress::from_string(sender_ip), sender_port +100*groupNum);
     otSender = new OTExtensionBristolSender(senderParty.getPort(), true, channel);
-
     // connect to partyS
     channel->join(500, 5000);
 
 
+    vector<string> subTaskNames{"Offline", "RunOT", "Online", "PrepareInterpolateValues"};
+    for (int i=0; i<NUM_OF_SPLITS; i++){
+        subTaskNames.push_back("BuildPolinomial");
+        subTaskNames.push_back("SendCoeffs");
+    }
+    subTaskNames.push_back("ReceiveHashValues");
+    subTaskNames.push_back("CalcOutput");
+    timer = new Measurement("PSI", 0, 2, times, subTaskNames);
     //use an additional bit in order to make sure that u^t will be in the field for sure.
 //    ZZ prime;
 //    GenGermainPrime(prime, SPLIT_FIELD_SIZE_BITS+1);
@@ -49,7 +75,7 @@ PartyR::PartyR(int numOfItems, int groupNum, string myIp,  string otherIp,int my
 //    ZZ number(NTL::INIT_VAL, str.c_str());
 //    ZZ_p::init(ZZ(number));
 
-    //ZZ_p::init(ZZ(1739458288095207497));
+
     ZZ_p::init(ZZ(2305843009213693951));
 
 
@@ -121,13 +147,20 @@ void PartyR::getInput()  {
 void PartyR::runProtocol(){
 
     auto all = scapi_now();
+    timer->startSubTask(0, currentIteration);
+    timer->startSubTask(1, currentIteration);
     runOT();
+    timer->endSubTask(1, currentIteration);
+    timer->endSubTask(0, currentIteration);
     auto end = std::chrono::system_clock::now();
     int elapsed_ms = std::chrono::duration_cast<std::chrono::microseconds>(end - all).count();
     cout << "PartyR - runOT took " << elapsed_ms << " microseconds" << endl;
 
     all = scapi_now();
+    timer->startSubTask(2, currentIteration); //start online
+    timer->startSubTask(3, currentIteration);
     prepareInterpolateValues();
+    timer->endSubTask(3, currentIteration);
     end = std::chrono::system_clock::now();
     elapsed_ms = std::chrono::duration_cast<std::chrono::microseconds>(end - all).count();
     cout << "PartyR - prepareInterpolateValues took " << elapsed_ms << " microseconds" << endl;
@@ -136,29 +169,99 @@ void PartyR::runProtocol(){
 
 
         all = scapi_now();
+        timer->startSubTask(4 + i*2, currentIteration);
         buildPolinomial(i);
+        timer->endSubTask(4 + i*2, currentIteration);
         end = std::chrono::system_clock::now();
         elapsed_ms = std::chrono::duration_cast<std::chrono::milliseconds>(end - all).count();
         cout << "PartyR - buildPolinomial took " << elapsed_ms << " milliseconds" << endl;
 
         all = scapi_now();
+        timer->startSubTask(5 + i*2, currentIteration);
         sendCoeffs();
+        timer->endSubTask(5 + i*2, currentIteration);
         end = std::chrono::system_clock::now();
         elapsed_ms = std::chrono::duration_cast<std::chrono::milliseconds>(end - all).count();
         cout << "PartyR - sendCoeffs took " << elapsed_ms << " milliseconds" << endl;
     }
     all = scapi_now();
+    timer->startSubTask(4 + NUM_OF_SPLITS * 2, currentIteration);
     recieveHashValues();
+    timer->endSubTask(4 + NUM_OF_SPLITS * 2, currentIteration);
     end = std::chrono::system_clock::now();
     elapsed_ms = std::chrono::duration_cast<std::chrono::milliseconds>(end - all).count();
     cout << "PartyR - recieveHashValues took " << elapsed_ms << " milliseconds" << endl;
 
 
     all = scapi_now();
+    timer->startSubTask(5 + NUM_OF_SPLITS * 2, currentIteration);
     calcOutput();
+    timer->endSubTask(5 + NUM_OF_SPLITS * 2, currentIteration);
+    timer->endSubTask(2, currentIteration);
     end = std::chrono::system_clock::now();
     elapsed_ms = std::chrono::duration_cast<std::chrono::milliseconds>(end - all).count();
     cout << "PartyR - calcOutput took " << elapsed_ms << " milliseconds" << endl;
+}
+
+void PartyR::runOnline() {
+    auto all = scapi_now();
+    timer->startSubTask(2, currentIteration); //start online
+    timer->startSubTask(3, currentIteration);
+    prepareInterpolateValues();
+    timer->endSubTask(3, currentIteration);
+    auto end = std::chrono::system_clock::now();
+    auto elapsed_ms = std::chrono::duration_cast<std::chrono::microseconds>(end - all).count();
+    cout << "PartyR - prepareInterpolateValues took " << elapsed_ms << " microseconds" << endl;
+
+    for(int i=0; i<NUM_OF_SPLITS; i++) {
+
+
+        all = scapi_now();
+        timer->startSubTask(4 + i*2, currentIteration);
+        buildPolinomial(i);
+        timer->endSubTask(4 + i*2, currentIteration);
+        end = std::chrono::system_clock::now();
+        elapsed_ms = std::chrono::duration_cast<std::chrono::milliseconds>(end - all).count();
+        cout << "PartyR - buildPolinomial took " << elapsed_ms << " milliseconds" << endl;
+
+        all = scapi_now();
+        timer->startSubTask(5 + i*2, currentIteration);
+        sendCoeffs();
+        timer->endSubTask(5 + i*2, currentIteration);
+        end = std::chrono::system_clock::now();
+        elapsed_ms = std::chrono::duration_cast<std::chrono::milliseconds>(end - all).count();
+        cout << "PartyR - sendCoeffs took " << elapsed_ms << " milliseconds" << endl;
+    }
+    all = scapi_now();
+    timer->startSubTask(4 + NUM_OF_SPLITS * 2, currentIteration);
+    recieveHashValues();
+    timer->endSubTask(4 + NUM_OF_SPLITS * 2, currentIteration);
+    end = std::chrono::system_clock::now();
+    elapsed_ms = std::chrono::duration_cast<std::chrono::milliseconds>(end - all).count();
+    cout << "PartyR - recieveHashValues took " << elapsed_ms << " milliseconds" << endl;
+
+
+    all = scapi_now();
+    timer->startSubTask(5 + NUM_OF_SPLITS * 2, currentIteration);
+    calcOutput();
+    timer->endSubTask(5 + NUM_OF_SPLITS * 2, currentIteration);
+    timer->endSubTask(2, currentIteration);
+    end = std::chrono::system_clock::now();
+    elapsed_ms = std::chrono::duration_cast<std::chrono::milliseconds>(end - all).count();
+    cout << "PartyR - calcOutput took " << elapsed_ms << " milliseconds" << endl;
+
+}
+void PartyR::runOffline() {
+    auto all = scapi_now();
+    timer->startSubTask(0, currentIteration);
+    timer->startSubTask(1, currentIteration);
+    runOT();
+    timer->endSubTask(1, currentIteration);
+    timer->endSubTask(0, currentIteration);
+    auto end = std::chrono::system_clock::now();
+    int elapsed_ms = std::chrono::duration_cast<std::chrono::microseconds>(end - all).count();
+    cout << "PartyR - runOT took " << elapsed_ms << " microseconds" << endl;
+
 }
 
 void PartyR::runOT(){
