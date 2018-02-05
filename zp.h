@@ -38,6 +38,9 @@ void test_tree (ZZ_pX& final_polynomial, ZZ_p* points, unsigned int npoints);
 void generateSubTreeArrays (vector<vector<int>> &subArrays, int totalNodes, int firstIndex);
 void buildSubTree (ZZ_pX* tree, vector<int> &subTree);
 void interSubTree (ZZ_pX* temp, ZZ_pX* M,  vector<int> &subTree);
+void evalReminder(ZZ_pX *tree, ZZ_pX *reminders, int i);
+void interSpecific(ZZ_pX *temp, ZZ_pX *M, int i);
+void buildTreeSpecific(ZZ_pX *tree, int i);
 
 
 void BytesToZZ_px(unsigned char *bytesArr, ZZ_pX& poly, long numOfElements, long sizeOfElement);

@@ -6,11 +6,13 @@
 #include <vector>
 #include <thread>
 #include <NTL/BasicThreadPool.h>
+#include <omp.h>
 
 
 #define LEFT(X) (2*X+1)
 #define RIGHT(X) (2*X+2)
 #define PAPA(X) ((X-1)/2)
+
 
 
 
@@ -108,26 +110,48 @@ void build_tree(ZZ_pX* tree, ZZ_p* points, unsigned int tree_size) {
 
     for (int t=0; t<numThreads; t++) {
 
-        //buildSubTree(tree, ref(subs[i]));
         threads[t] = thread(&buildSubTree, tree, ref(subs[t]));
-
-
     }
-
 
     for (int t=0; t<numThreads; t++){
         threads[t].join();
     }
-
 
     end1 = steady_clock::now();
     cout << "Building tree - threads part: " << duration_cast<milliseconds>(end1 - begin1).count() << " ms" << endl;
 
 
     begin1 = steady_clock::now();
-    for(int i=numThreads-1; i>=0; i--)
-        tree[i] = tree[LEFT(i)]*tree[RIGHT(i)];
+    vector<thread> threadsLastPart(numThreads*2);
 
+    for(int i=log2(numThreads)-1; i>=1; i--){
+        //cout<<"layer "<<i<< " : " <<endl;
+        for(int j=pow(2,i)-1; j<=pow(2,i+1)-2; j++){
+            //cout<<" index to process is "<< j<<endl;
+
+            threadsLastPart[j] = thread(&buildTreeSpecific,tree, j);
+        }
+
+        for(int j=pow(2,i)-1; j<=pow(2,i+1)-2; j++){
+            //cout<<" index join to process is "<< j<<endl;
+            threadsLastPart[j].join();
+        }
+    }
+
+
+    end1 = steady_clock::now();
+    cout << "inter - last part for max "<< numThreads/2<<" threads " << duration_cast<milliseconds>(end1 - begin1).count() << " ms" << endl;
+
+
+
+//    begin1 = steady_clock::now();
+//    for(int i=numThreads-2; i>=1; i--)
+//        tree[i] = tree[LEFT(i)]*tree[RIGHT(i)];
+//    end1 = steady_clock::now();
+//    cout << "Building tree - SERIAL: " << duration_cast<milliseconds>(end1 - begin1).count() << " ms" << endl;
+
+    begin1 = steady_clock::now();
+    tree[0] = tree[LEFT(0)]*tree[RIGHT(0)];
     end1 = steady_clock::now();
     cout << "Building tree - last mults: " << duration_cast<milliseconds>(end1 - begin1).count() << " ms" << endl;
 
@@ -241,7 +265,6 @@ void evaluate_main (ZZ_pX& P, ZZ_pX* tree, ZZ_pX* reminders , unsigned int tree_
 
     unsigned int i = 1;
     for (; i<tree_size/2; i++) {
-//        cout << "i="<<i <<": ";
         reminders[i] = reminders[PAPA(i)]%tree[i];
     }
 
@@ -256,25 +279,42 @@ void evaluate_main (ZZ_pX& P, ZZ_pX* tree, ZZ_pX* reminders , unsigned int tree_
 
 void evaluate (ZZ_pX& P, ZZ_pX* tree, ZZ_pX* reminders , unsigned int tree_size, ZZ_p* results) {
 
-    reminders[0] = P%tree[0];
-
-
     auto begin1 = steady_clock::now();
-    int numThreads = 4;
-    vector<vector<int>> subs(numThreads);
-    generateSubTreeArrays(subs, tree_size, numThreads-1);
+    //set the reminder of the root
+    reminders[0] = P%tree[0];
     auto end1 = steady_clock::now();
-    cout << "Building tree - generate sub trees: " << duration_cast<milliseconds>(end1 - begin1).count() << " ms" << endl;
+    cout << "eval - not paralleled "<<" threads " << duration_cast<milliseconds>(end1 - begin1).count() << " ms" << endl;
+
 
 
     begin1 = steady_clock::now();
-    for (int i=1; i<numThreads-1; i++) {
-//        cout << "i="<<i <<": ";
-        reminders[i] = reminders[PAPA(i)]%tree[i];
+    int numThreads = 4;
+    vector<vector<int>> subs(numThreads);
+    generateSubTreeArrays(subs, tree_size, numThreads-1);
+    end1 = steady_clock::now();
+    cout << "eval - generate sub trees: " << duration_cast<milliseconds>(end1 - begin1).count() << " ms" << endl;
+
+
+    begin1 = steady_clock::now();
+    vector<thread> threadsFirstPart(numThreads*2);
+
+    for(int i=1; i<log2(numThreads); i++){
+        //cout<<"layer "<<i<< " : " <<endl;
+        for(int j=pow(2,i)-1; j<=pow(2,i+1)-2; j++){
+            //cout<<" index to process is "<< j<<endl;
+
+            threadsFirstPart[j] = thread(&evalReminder,tree, reminders, j);
+        }
+
+        for(int j=pow(2,i)-1; j<=pow(2,i+1)-2; j++){
+            //cout<<" index join to process is "<< j<<endl;
+            threadsFirstPart[j].join();
+        }
     }
 
+
     end1 = steady_clock::now();
-    cout << "eval - first part for "<< numThreads<<" threads " << duration_cast<milliseconds>(end1 - begin1).count() << " ms" << endl;
+    cout << "eval - first part for max "<< numThreads/2<<" threads " << duration_cast<milliseconds>(end1 - begin1).count() << " ms" << endl;
 
 
     begin1 = steady_clock::now();
@@ -305,6 +345,21 @@ void evaluate (ZZ_pX& P, ZZ_pX* tree, ZZ_pX* reminders , unsigned int tree_size,
     end1 = steady_clock::now();
     cout << "eval - assign last part: " << duration_cast<milliseconds>(end1 - begin1).count() << " ms" << endl;
 
+}
+
+void evalReminder(ZZ_pX *tree, ZZ_pX *reminders, int i) {
+    ZZ_p::init(ZZ(2305843009213693951));
+    reminders[i] = reminders[PAPA(i)]%tree[i];
+}
+
+void interSpecific(ZZ_pX *temp, ZZ_pX *M, int i) {
+    ZZ_p::init(ZZ(2305843009213693951));
+    temp[i] = temp[LEFT(i)] * M[RIGHT(i)] + temp[RIGHT(i)] * M[LEFT(i)] ;
+}
+
+void buildTreeSpecific(ZZ_pX *tree, int i) {
+    ZZ_p::init(ZZ(2305843009213693951));
+    tree[i] = tree[LEFT(i)]*tree[RIGHT(i)];
 }
 
 
@@ -410,7 +465,7 @@ void iterative_interpolate_zp(ZZ_pX& resultP, ZZ_pX* temp, ZZ_p* y, ZZ_p* a, ZZ_
     vector<vector<int>> subs(numThreads);
     generateSubTreeArrays(subs, tree_size/2, numThreads-1);
     auto end1 = steady_clock::now();
-    cout << "Building tree - generate sub trees: " << duration_cast<milliseconds>(end1 - begin1).count() << " ms" << endl;
+    cout << "inter - generate sub trees: " << duration_cast<milliseconds>(end1 - begin1).count() << " ms" << endl;
 
 
     begin1 = steady_clock::now();
@@ -432,15 +487,43 @@ void iterative_interpolate_zp(ZZ_pX& resultP, ZZ_pX* temp, ZZ_p* y, ZZ_p* a, ZZ_
     cout << "interpolate - threads part: " << duration_cast<milliseconds>(end1 - begin1).count() << " ms" << endl;
 
 
+//    begin1 = steady_clock::now();
+//    for(int i=numThreads-2; i>0; i--)
+//        temp[i] = temp[LEFT(i)] * M[RIGHT(i)] + temp[RIGHT(i)] * M[LEFT(i)] ;
+//
+//    end1 = steady_clock::now();
+//    cout << "inter - first part SERIAL "<< duration_cast<milliseconds>(end1 - begin1).count() << " ms" << endl;
+//
+
+
     begin1 = steady_clock::now();
-    for(int i=1; i<numThreads-1; i++)
-        temp[i] = temp[LEFT(i)] * M[RIGHT(i)] + temp[RIGHT(i)] * M[LEFT(i)] ;
+    vector<thread> threadsLastPart(numThreads*2);
+
+    for(int i=log2(numThreads)-1; i>=1; i--){
+        //cout<<"layer "<<i<< " : " <<endl;
+        for(int j=pow(2,i)-1; j<=pow(2,i+1)-2; j++){
+            //cout<<" index to process is "<< j<<endl;
+
+            threadsLastPart[j] = thread(&interSpecific,temp, M, j);
+        }
+
+        for(int j=pow(2,i)-1; j<=pow(2,i+1)-2; j++){
+            //cout<<" index join to process is "<< j<<endl;
+            threadsLastPart[j].join();
+        }
+    }
 
 
+    end1 = steady_clock::now();
+    cout << "inter - last part for max "<< numThreads/2<<" threads " << duration_cast<milliseconds>(end1 - begin1).count() << " ms" << endl;
+
+
+    begin1 = steady_clock::now();
+    //last iteration
     resultP = temp[LEFT(0)] * M[RIGHT(0)] + temp[RIGHT(0)] * M[LEFT(0)] ;
 
     end1 = steady_clock::now();
-    cout << "interpolate - last part: " << duration_cast<milliseconds>(end1 - begin1).count() << " ms" << endl;
+    cout << "interpolate - last iteration for root: " << duration_cast<milliseconds>(end1 - begin1).count() << " ms" << endl;
 
 }
 
@@ -526,7 +609,7 @@ void test_interpolate_zp(ZZ prime, long degree)
     ZZ_pX P;
     interpolate_zp(P, x, y, degree);
     //cout << "P: "; print_poly(P); cout << endl;
-    test_interpolation_result_zp(P, x, y, degree);
+    //test_interpolation_result_zp(P, x, y, degree);
 }
 
 
