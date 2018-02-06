@@ -112,7 +112,9 @@ PartyS::PartyS(int argc, char* argv[] ) : Party(argc, argv){
         }
 
     }
-    zSha.resize(numOfItems*hash.getHashedMsgSize());
+
+    //this vector is fill by neededHashSize for each item, however the last iteration has hash.getHashedMsgSize() bytes.
+    zSha.resize((numOfItems-1)*neededHashSize + hash.getHashedMsgSize());
 
     yArr.resize(numOfItems);
 
@@ -443,19 +445,18 @@ void PartyS::setInputsToByteVector(int offset, int numOfItemsToConvert, vector<b
 
 void PartyS::sendHashValues(){
 
-    int sizeOfHashedMsg = hash.getHashedMsgSize();
-
     auto all = scapi_now();
-
-
 
     for(int i=0; i<numOfItems; i++) {
         //update the hash
         for(int s=0; s<NUM_OF_SPLITS;s++)
             hash.update(zRows[s][i], 0, SIZE_SPLIT_FIELD_BYTES);
 
-        hash.hashFinal(zSha, i * sizeOfHashedMsg);
+        //at each iteration move the pointer only neededHashSize even though the hash returns the readl hash size
+        hash.hashFinal(zSha, i * neededHashSize);
     }
+
+    zSha.resize(numOfItems*neededHashSize);
 
     //cout<< zRows[i] <<endl;
 
@@ -463,16 +464,7 @@ void PartyS::sendHashValues(){
     int elapsed_ms = std::chrono::duration_cast<std::chrono::milliseconds>(end - all).count();
     cout << "   PartyS - eval and prepare to send took " << elapsed_ms << " milliseconds" << endl;
 
-
-
-    //NOTE need to send the hash values and not the values
-
-    //channel->write((byte*) zRows.data(), zRows.size()*8);
-
-
-    channel->write((byte*) zSha.data(), zSha.size());
-
-
+    channel->write(zSha.data(), zSha.size());
 
 }
 

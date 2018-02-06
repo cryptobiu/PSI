@@ -57,8 +57,10 @@ PartyR::PartyR(int argc, char* argv[]): Party(argc, argv) {
     subTaskNames.push_back("ReceiveHashValues");
     subTaskNames.push_back("CalcOutput");
     timer = new Measurement("PSI", 0, 2, times, subTaskNames);
-    //use an additional bit in order to make sure that u^t will be in the field for sure.
 
+
+    //use an additional bit in order to make sure that u^t will be in the field for sure.
+    //Should be the smallest prime possible with SPLIT_FIELD_SIZE_BITS+1 bits for security
     GenGermainPrime(prime, SPLIT_FIELD_SIZE_BITS+1);
 
     ZZ_p::init(ZZ(prime));
@@ -108,7 +110,7 @@ PartyR::PartyR(int argc, char* argv[]): Party(argc, argv) {
     }
 
 
-    zSha.resize(numOfItems*hash.getHashedMsgSize());
+    zSha.resize(numOfItems*neededHashSize);
     tSha.resize(numOfItems);
 
 
@@ -320,13 +322,6 @@ void PartyR::buildPolinomial(int split){
     OpenSSLAES aes;
     SecretKey key;
 
-
-
-
-
-//#pragma omp parallel for
-
-
     //TODO break calculation into threads such that each thread does part of the encryptions, rather than an entire row.
     //TODO do just the needed columns for the split
 
@@ -361,23 +356,25 @@ void PartyR::buildPolinomial(int split){
 
 
     //in this stage we have the entire matrix but not with a single bit, rather with 128 bits
-
     //extract each bit to get the entire row of bits
-    unsigned long temp = 0;
+
     vector<vector<byte>> tempArr(numOfItems);
 
     all = scapi_now();
 //#pragma omp parallel for
-    for(int i=0; i<numOfItems; i++) {
+    for(int i=0; i<numOfItems; i++) {//clear the vectors from the previous split
         tempArr[i].resize(SIZE_SPLIT_FIELD_BYTES);
         fill(tRows[i].begin(), tRows[i].end(), 0);
         fill(uRows[i].begin(), uRows[i].end(), 0);
     }
 
-//#pragma omp parallel for
+//if(split==0)
+    omp_set_num_threads(numOfThreads);
+    #pragma omp parallel for //opem mp parallelism for for loops. TODO switch to c++11 threads
 
     //extract a single bit from each 128 bit cipher
     for (int j = 0; j < SPLIT_FIELD_SIZE_BITS; j++) {//go column by column instead of row by row for performance
+        unsigned long temp = 0;
         for(int i=0; i<numOfItems;i++) {
 
 //
@@ -410,7 +407,7 @@ void PartyR::buildPolinomial(int split){
 //        cout<<endl;
 
 
-        //TODO check vectorization
+        //TODO check vectorization. Change to flat byte arrays.
         //TODO consider using unsigned long since there is a lower bound of 60 bits for a field
         for(int j=0; j<SIZE_SPLIT_FIELD_BYTES; j++){
             tempArr[i][j] = tRows[i][j] ^ uRows[i][j];
@@ -489,7 +486,7 @@ void PartyR::recieveHashValues(){
     calcHashValues();
 
     //get the hash values from S
-    channel->read((byte*) zSha.data(), zSha.size());
+    channel->read( zSha.data(), zSha.size());
 
 }
 
@@ -510,6 +507,8 @@ void PartyR::calcHashValues() {
 
         //TODO take only the required amout of bytes, consider using a single unsigned long in case only up to 64 bits are enough
         hash.hashFinal(tSha[i], 0);
+
+        tSha[i].resize(neededHashSize);
     }
 }
 
@@ -561,9 +560,9 @@ void PartyR::calcOutput(){
 
     //TODO improve threads performance. Note that the current map find is not thread safe.
 //#pragma omp parallel for
-    for(int i=0; i<zSha.size()/sizeOfHashedMsg; i++){
+    for(int i=0; i<numOfItems; i++){
 
-        zElement.assign(zSha.data() + i*sizeOfHashedMsg, zSha.data() + (i+1)*sizeOfHashedMsg);
+        zElement.assign(zSha.data() + i*neededHashSize, zSha.data() + (i+1)*neededHashSize);
         //zElement.assign(zSha.data() + i*sizeOfHashedMsg, zSha.data() + i*sizeOfHashedMsg + REQUIRED_HASH_SIZE);
         //elemLong = *(long *)(zSha.data() + i*sizeOfHashedMsg);
 

@@ -44,6 +44,9 @@ protected:
     ZZ prime;
 
     int numOfThreads;
+    int neededHashSize;
+
+
     int NUM_OF_SPLITS;  //break the computation so at each round we only do SPLIT_FIELD_SIZE bits. This way
                         //the interpolation is broken into parts and there will be much less idle time on both sides.
                         //interpolation running time of R can be used to eval the current polynomial and do some other
