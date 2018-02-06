@@ -58,6 +58,7 @@ protected:
 
 public:
     Party(int argc, char* argv[]);
+    ~Party();
 
     bool hasOffline() override { return true; }
     bool hasOnline() override { return true; }

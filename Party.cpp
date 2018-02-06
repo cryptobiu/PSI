@@ -4,7 +4,8 @@
 
 #include "Party.h"
 
-Party::Party(int argc, char* argv []) : Protocol("PSI", argc, argv){
+Party::Party(int argc, char* argv []) : Protocol("PSI", argc, argv)
+{
     numOfItems = stoi(arguments["numOfItems"]);
     times = stoi(arguments["internalIterationsNumber"]);
     numOfThreads = stoi(arguments["numOfThreads"]);
@@ -17,4 +18,9 @@ Party::Party(int argc, char* argv []) : Protocol("PSI", argc, argv){
     SIZE_OF_NEEDED_BYTES = SIZE_SPLIT_FIELD_BYTES*NUM_OF_SPLITS;
 
     neededHashSize =  40 + 2*log2(numOfItems);//hash.getHashedMsgSize()
+}
+
+Party::~Party()
+{
+    delete timer;
 }
