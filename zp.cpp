@@ -281,7 +281,7 @@ void evaluate (ZZ_pX& P, ZZ_pX* tree, ZZ_pX* reminders , unsigned int tree_size,
     auto begin1 = steady_clock::now();
     //set the reminder of the root
     //reminders[0] = P%tree[0];
-    //reminders[0] = P;
+    reminders[0] = P;
     reminders[1] = P;
     reminders[2] = P;
 
