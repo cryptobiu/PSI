@@ -373,28 +373,46 @@ void PartyR::buildPolinomial(int split){
     //#pragma omp parallel for //opem mp parallelism for for loops. TODO switch to c++11 threads
 
     //extract a single bit from each 128 bit cipher
-    for (int j = 0; j < SPLIT_FIELD_SIZE_BITS; j++) {//go column by column instead of row by row for performance
-        unsigned long temp = 0;
-        for(int i=0; i<numOfItems;i++) {
-
+//    for (int j = 0; j < SPLIT_FIELD_SIZE_BITS; j++) {//go column by column instead of row by row for performance
+//        unsigned long temp = 0;
+//        for(int i=0; i<numOfItems;i++) {
 //
-            //get first byte from the entires encryption
-            temp = tbitArr[SPLIT_FIELD_SIZE_BITS * split + j][i * 16] & 1;
+////
+//            //get first byte from the entires encryption
+//            temp = tbitArr[SPLIT_FIELD_SIZE_BITS * split + j][i * 16] & 1;
+//
+//
+//            //get the bit in the right position
+//            tRows[i][j / 8] += (temp << (j % 8));//TODO consider shifting
+//
+//
+//
+//            //get first byte from the entires encryption
+//            temp = ubitArr[SPLIT_FIELD_SIZE_BITS * split + j][i * 16] & 1;
+//
+//            //get the bit in the right position
+//            uRows[i][j / 8] += (temp << (j % 8));
+//
+//        }
+//    }
 
 
-            //get the bit in the right position
-            tRows[i][j / 8] += (temp << (j % 8));//TODO consider shifting
+    int numbitsForEachThread = (SPLIT_FIELD_SIZE_BITS + numOfThreads - 1)/ numOfThreads;
 
 
-
-            //get first byte from the entires encryption
-            temp = ubitArr[SPLIT_FIELD_SIZE_BITS * split + j][i * 16] & 1;
-
-            //get the bit in the right position
-            uRows[i][j / 8] += (temp << (j % 8));
-
+    vector<thread> threads(numOfThreads);
+    for (int t=0; t<numOfThreads; t++) {
+        if ((t + 1) * numbitsForEachThread <= SPLIT_FIELD_SIZE_BITS) {
+            threads[t] = thread(&PartyR::extractBitsThread, this, t * numbitsForEachThread, (t + 1) * numbitsForEachThread, split);
+        } else {
+            threads[t] = thread(&PartyR::extractBitsThread, this, t * numbitsForEachThread, SPLIT_FIELD_SIZE_BITS, split);
         }
     }
+    for (int t=0; t<numOfThreads; t++){
+        threads[t].join();
+    }
+
+
 
     end = std::chrono::system_clock::now();
     elapsed_ms = std::chrono::duration_cast<std::chrono::milliseconds>(end - all).count();
@@ -449,6 +467,35 @@ void PartyR::buildPolinomial(int split){
 
 
     //cout<<polyP;
+}
+
+void PartyR::extractBitsThread(int start, int end, int split){
+
+    for (int j = start; j < end; j++) {//go column by column instead of row by row for performance
+        unsigned long temp = 0;
+        for(int i=0; i<numOfItems;i++) {
+
+//
+            //get first byte from the entires encryption
+            temp = tbitArr[SPLIT_FIELD_SIZE_BITS * split + j][i * 16] & 1;
+
+
+            //get the bit in the right position
+            tRows[i][j / 8] += (temp << (j % 8));//TODO consider shifting
+
+
+
+            //get first byte from the entires encryption
+            temp = ubitArr[SPLIT_FIELD_SIZE_BITS * split + j][i * 16] & 1;
+
+            //get the bit in the right position
+            uRows[i][j / 8] += (temp << (j % 8));
+
+        }
+    }
+
+
+
 }
 
 void PartyR::setInputsToByteVector(int offset, int numOfItemsToConvert, vector<byte> & inputsAsBytesArr) {
@@ -605,3 +652,4 @@ void PartyR::calcOutput(){
 
 
 }
+

@@ -93,6 +93,7 @@ public:
 
     void calcOutput();
 
+    void extractBitsThread(int start, int end, int split);
 
     void setInputsToByteVector(int offset, int numOfItemsToConvert,vector<byte> & inputsAsBytesArr);
 
