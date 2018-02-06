@@ -56,7 +56,7 @@ PartyR::PartyR(int argc, char* argv[]): Party(argc, argv) {
     }
     subTaskNames.push_back("ReceiveHashValues");
     subTaskNames.push_back("CalcOutput");
-    timer = new Measurement("PSI", 0, 2, times, subTaskNames);
+    timer = new Measurement(*this, subTaskNames);
 
 
     //use an additional bit in order to make sure that u^t will be in the field for sure.
@@ -149,20 +149,20 @@ void PartyR::getInput()  {
 void PartyR::runProtocol(){
 
     auto all = scapi_now();
-    timer->startSubTask(0, currentIteration);
-    timer->startSubTask(1, currentIteration);
+    timer->startSubTask("Offline", currentIteration);
+    timer->startSubTask("RunOT", currentIteration);
     runOT();
-    timer->endSubTask(1, currentIteration);
-    timer->endSubTask(0, currentIteration);
+    timer->endSubTask("RunOT", currentIteration);
+    timer->endSubTask("Offline", currentIteration);
     auto end = std::chrono::system_clock::now();
     int elapsed_ms = std::chrono::duration_cast<std::chrono::microseconds>(end - all).count();
     cout << "PartyR - runOT took " << elapsed_ms << " microseconds" << endl;
 
     all = scapi_now();
-    timer->startSubTask(2, currentIteration); //start online
-    timer->startSubTask(3, currentIteration);
+    timer->startSubTask("Online", currentIteration); //start online
+    timer->startSubTask("PrepareInterpolateValues", currentIteration);
     prepareInterpolateValues();
-    timer->endSubTask(3, currentIteration);
+    timer->endSubTask("PrepareInterpolateValues", currentIteration);
     end = std::chrono::system_clock::now();
     elapsed_ms = std::chrono::duration_cast<std::chrono::microseconds>(end - all).count();
     cout << "PartyR - prepareInterpolateValues took " << elapsed_ms << " microseconds" << endl;
@@ -171,35 +171,35 @@ void PartyR::runProtocol(){
 
 
         all = scapi_now();
-        timer->startSubTask(4 + i*2, currentIteration);
+//        timer->startSubTask(4 + i*2, currentIteration);
         buildPolinomial(i);
-        timer->endSubTask(4 + i*2, currentIteration);
+//        timer->endSubTask(4 + i*2, currentIteration);
         end = std::chrono::system_clock::now();
         elapsed_ms = std::chrono::duration_cast<std::chrono::milliseconds>(end - all).count();
         cout << "PartyR - buildPolinomial took " << elapsed_ms << " milliseconds" << endl;
 
         all = scapi_now();
-        timer->startSubTask(5 + i*2, currentIteration);
+//        timer->startSubTask(5 + i*2, currentIteration);
         sendCoeffs();
-        timer->endSubTask(5 + i*2, currentIteration);
+//        timer->endSubTask(5 + i*2, currentIteration);
         end = std::chrono::system_clock::now();
         elapsed_ms = std::chrono::duration_cast<std::chrono::milliseconds>(end - all).count();
         cout << "PartyR - sendCoeffs took " << elapsed_ms << " milliseconds" << endl;
     }
     all = scapi_now();
-    timer->startSubTask(4 + NUM_OF_SPLITS * 2, currentIteration);
+//    timer->startSubTask(4 + NUM_OF_SPLITS * 2, currentIteration);
     recieveHashValues();
-    timer->endSubTask(4 + NUM_OF_SPLITS * 2, currentIteration);
+//    timer->endSubTask(4 + NUM_OF_SPLITS * 2, currentIteration);
     end = std::chrono::system_clock::now();
     elapsed_ms = std::chrono::duration_cast<std::chrono::milliseconds>(end - all).count();
     cout << "PartyR - recieveHashValues took " << elapsed_ms << " milliseconds" << endl;
 
 
     all = scapi_now();
-    timer->startSubTask(5 + NUM_OF_SPLITS * 2, currentIteration);
+//    timer->startSubTask(5 + NUM_OF_SPLITS * 2, currentIteration);
     calcOutput();
-    timer->endSubTask(5 + NUM_OF_SPLITS * 2, currentIteration);
-    timer->endSubTask(2, currentIteration);
+//    timer->endSubTask(5 + NUM_OF_SPLITS * 2, currentIteration);
+    timer->endSubTask("Online", currentIteration); //end online
     end = std::chrono::system_clock::now();
     elapsed_ms = std::chrono::duration_cast<std::chrono::milliseconds>(end - all).count();
     cout << "PartyR - calcOutput took " << elapsed_ms << " milliseconds" << endl;
@@ -207,10 +207,10 @@ void PartyR::runProtocol(){
 
 void PartyR::runOnline() {
     auto all = scapi_now();
-    timer->startSubTask(2, currentIteration); //start online
-    timer->startSubTask(3, currentIteration);
+    timer->startSubTask("Online", currentIteration); //start online
+    timer->startSubTask("PrepareInterpolateValues", currentIteration);
     prepareInterpolateValues();
-    timer->endSubTask(3, currentIteration);
+    timer->endSubTask("PrepareInterpolateValues", currentIteration);
     auto end = std::chrono::system_clock::now();
     auto elapsed_ms = std::chrono::duration_cast<std::chrono::microseconds>(end - all).count();
     cout << "PartyR - prepareInterpolateValues took " << elapsed_ms << " microseconds" << endl;
@@ -219,35 +219,35 @@ void PartyR::runOnline() {
 
 
         all = scapi_now();
-        timer->startSubTask(4 + i*2, currentIteration);
+//        timer->startSubTask(4 + i*2, currentIteration);
         buildPolinomial(i);
-        timer->endSubTask(4 + i*2, currentIteration);
+//        timer->endSubTask(4 + i*2, currentIteration);
         end = std::chrono::system_clock::now();
         elapsed_ms = std::chrono::duration_cast<std::chrono::milliseconds>(end - all).count();
         cout << "PartyR - buildPolinomial took " << elapsed_ms << " milliseconds" << endl;
 
         all = scapi_now();
-        timer->startSubTask(5 + i*2, currentIteration);
+//        timer->startSubTask(5 + i*2, currentIteration);
         sendCoeffs();
-        timer->endSubTask(5 + i*2, currentIteration);
+//        timer->endSubTask(5 + i*2, currentIteration);
         end = std::chrono::system_clock::now();
         elapsed_ms = std::chrono::duration_cast<std::chrono::milliseconds>(end - all).count();
         cout << "PartyR - sendCoeffs took " << elapsed_ms << " milliseconds" << endl;
     }
     all = scapi_now();
-    timer->startSubTask(4 + NUM_OF_SPLITS * 2, currentIteration);
+//    timer->startSubTask(4 + NUM_OF_SPLITS * 2, currentIteration);
     recieveHashValues();
-    timer->endSubTask(4 + NUM_OF_SPLITS * 2, currentIteration);
+//    timer->endSubTask(4 + NUM_OF_SPLITS * 2, currentIteration);
     end = std::chrono::system_clock::now();
     elapsed_ms = std::chrono::duration_cast<std::chrono::milliseconds>(end - all).count();
     cout << "PartyR - recieveHashValues took " << elapsed_ms << " milliseconds" << endl;
 
 
     all = scapi_now();
-    timer->startSubTask(5 + NUM_OF_SPLITS * 2, currentIteration);
+//    timer->startSubTask(5 + NUM_OF_SPLITS * 2, currentIteration);
     calcOutput();
-    timer->endSubTask(5 + NUM_OF_SPLITS * 2, currentIteration);
-    timer->endSubTask(2, currentIteration);
+//    timer->endSubTask(5 + NUM_OF_SPLITS * 2, currentIteration);
+    timer->endSubTask("Online", currentIteration);
     end = std::chrono::system_clock::now();
     elapsed_ms = std::chrono::duration_cast<std::chrono::milliseconds>(end - all).count();
     cout << "PartyR - calcOutput took " << elapsed_ms << " milliseconds" << endl;
@@ -255,11 +255,11 @@ void PartyR::runOnline() {
 }
 void PartyR::runOffline() {
     auto all = scapi_now();
-    timer->startSubTask(0, currentIteration);
-    timer->startSubTask(1, currentIteration);
+    timer->startSubTask("Offline", currentIteration);
+    timer->startSubTask("RunOT", currentIteration);
     runOT();
-    timer->endSubTask(1, currentIteration);
-    timer->endSubTask(0, currentIteration);
+    timer->endSubTask("RunOT", currentIteration);
+    timer->endSubTask("Offline", currentIteration);
     auto end = std::chrono::system_clock::now();
     int elapsed_ms = std::chrono::duration_cast<std::chrono::microseconds>(end - all).count();
     cout << "PartyR - runOT took " << elapsed_ms << " microseconds" << endl;
