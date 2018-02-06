@@ -369,8 +369,8 @@ void PartyR::buildPolinomial(int split){
     }
 
 //if(split==0)
-    omp_set_num_threads(numOfThreads);
-    #pragma omp parallel for //opem mp parallelism for for loops. TODO switch to c++11 threads
+    //omp_set_num_threads(numOfThreads);
+    //#pragma omp parallel for //opem mp parallelism for for loops. TODO switch to c++11 threads
 
     //extract a single bit from each 128 bit cipher
     for (int j = 0; j < SPLIT_FIELD_SIZE_BITS; j++) {//go column by column instead of row by row for performance
