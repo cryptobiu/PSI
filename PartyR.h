@@ -51,6 +51,8 @@ class PartyR : public Party {
 
     OTBatchSender * otSender;			//The OT object that used in the protocol.
 
+    int amount=0;//amout of items matched
+
 //    vector<ZZ_p> yArr;
 
 
@@ -94,10 +96,14 @@ public:
     void calcOutput();
 
     void extractBitsThread(int start, int end, int split);
+    void prfEncryptThread(int start, int end, int split, vector<byte> &partialInputsAsBytesArr);
 
     void setInputsToByteVector(int offset, int numOfItemsToConvert,vector<byte> & inputsAsBytesArr);
 
     void calcHashValues();
+
+    void writeResultsToFile();
+
 
 
 };
