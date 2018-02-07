@@ -341,7 +341,7 @@ void PartyR::buildPolinomial(int split){
 
     auto end = std::chrono::system_clock::now();
     auto elapsed_ms = std::chrono::duration_cast<std::chrono::milliseconds>(end - all).count();
-    cout << "   PartyR - calc PRF " << elapsed_ms << " milliseconds" << endl;
+    //cout << "   PartyR - calc PRF " << elapsed_ms << " milliseconds" << endl;
 
 
     //in this stage we have the entire matrix but not with a single bit, rather with 128 bits
@@ -386,7 +386,7 @@ void PartyR::buildPolinomial(int split){
 
     end = std::chrono::system_clock::now();
     elapsed_ms = std::chrono::duration_cast<std::chrono::milliseconds>(end - all).count();
-    cout << "   PartyR - extract bits took " << elapsed_ms << " milliseconds" << endl;
+    //cout << "   PartyR - extract bits took " << elapsed_ms << " milliseconds" << endl;
 
     all = scapi_now();
     for(int i=0; i<numOfItems;i++){
@@ -418,7 +418,7 @@ void PartyR::buildPolinomial(int split){
 
     end = std::chrono::system_clock::now();
     elapsed_ms = std::chrono::duration_cast<std::chrono::milliseconds>(end - all).count();
-    cout << "   PartyR - generate y's took " << elapsed_ms << " milliseconds" << endl;
+    //cout << "   PartyR - generate y's took " << elapsed_ms << " milliseconds" << endl;
 
 
     //interpolate on input,y cordinates
@@ -441,7 +441,7 @@ void PartyR::buildPolinomial(int split){
 
 void PartyR::prfEncryptThread(int start, int end, int split, vector<byte> &partialInputsAsBytesArr) {
 
-    cout<<"thread num "<<start<< " range is "<<"("<<start<<","<<end<<")"<<endl;
+    //cout<<"thread num "<<start<< " range is "<<"("<<start<<","<<end<<")"<<endl;
     SecretKey key;
     //go over each column and encrypt each input for each column
     for(int i=start; i<end; i++){
@@ -469,7 +469,7 @@ void PartyR::prfEncryptThread(int start, int end, int split, vector<byte> &parti
 
 void PartyR::extractBitsThread(int start, int end, int split){
 
-    cout<<"thread num "<<start/8<< " range is "<<"("<<start<<","<<end<<")"<<endl;
+    //cout<<"thread num "<<start/8<< " range is "<<"("<<start<<","<<end<<")"<<endl;
     for (int j = start; j < end; j++) {//go column by column instead of row by row for performance
         unsigned long temp = 0;
         for(int i=0; i<numOfItems;i++) {
