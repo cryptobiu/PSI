@@ -12,10 +12,11 @@
 PartyR::PartyR(int argc, char* argv[]): Party(argc, argv) {
     auto start = scapi_now();
 
-    auto groupNum = stoi(arguments["groupID"]);
+    auto groupNum = stoi(this->getParser().getValueByKey(arguments, "groupID"));
 
     //open parties file
-    ConfigFile cf(arguments["partiesFile"].c_str());
+    string partiesFilePath = this->getParser().getValueByKey(arguments, "partiesFile");
+    ConfigFile cf(partiesFilePath);
 
     string receiver_ip, sender_ip;
     int receiver_port, sender_port;
