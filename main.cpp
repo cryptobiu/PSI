@@ -18,6 +18,11 @@ int main(int argc, char* argv[]) {
         auto end = std::chrono::system_clock::now();
         long elapsed_ms = std::chrono::duration_cast<std::chrono::milliseconds>(end - all).count();
         cout << "********************* PartyR ********\nRunning took " << elapsed_ms << " milliseconds" << endl;
+
+
+        //write the results to file
+        pR.writeResultsToFile();
+
     }
     else if (partyNum == 1) {
         auto all = scapi_now();

@@ -319,41 +319,30 @@ void PartyR::buildPolinomial(int split){
 
     vector<byte> partialInputsAsBytesArr(numOfItems*16);
     setInputsToByteVector(0, numOfItems, partialInputsAsBytesArr);
-    //NOTE-----------change to param of the underlying field
-    OpenSSLAES aes;
-    SecretKey key;
 
-    //TODO break calculation into threads such that each thread does part of the encryptions, rather than an entire row.
-    //TODO do just the needed columns for the split
+    //
 
-    //go over each column and encrypt each input for each column
-    for(int i=0; i<SPLIT_FIELD_SIZE_BITS; i++){
 
-        key = SecretKey(T.data() + 16 * (SPLIT_FIELD_SIZE_BITS*split + i), 16, "aes");
-
-        //cout<<"keyt "<<i<<" " <<(int)key.getEncoded()[0]<<endl;
-
-        aesArr[SPLIT_FIELD_SIZE_BITS*split + i].setKey(key);
-        //aes.setKey(key);
-
-        aesArr[SPLIT_FIELD_SIZE_BITS*split + i].optimizedCompute(partialInputsAsBytesArr, tbitArr[SPLIT_FIELD_SIZE_BITS*split + i]);
-
-        key = SecretKey(U.data() + 16 * (SPLIT_FIELD_SIZE_BITS*split + i), 16, "aes");
-
-        //cout<<"keyu "<<i<<" " <<(int)key.getEncoded()[0]<<endl;
-        aesArr[SPLIT_FIELD_SIZE_BITS*split + i].setKey(key);
-        //aes.setKey(key);
-
-        aesArr[SPLIT_FIELD_SIZE_BITS*split + i].optimizedCompute(partialInputsAsBytesArr, ubitArr[SPLIT_FIELD_SIZE_BITS*split + i]);
+    //go over each column and encrypt each input for each column.
+    //go over column by column and no row by row to reduce cache miss
+    int numbitsForEachThread = (SPLIT_FIELD_SIZE_BITS + numOfThreads - 1)/ numOfThreads;
+    vector<thread> threadsAes(numOfThreads);
+    for (int t=0; t<numOfThreads; t++) {
+        if ((t + 1) * numbitsForEachThread <= SPLIT_FIELD_SIZE_BITS) {
+            threadsAes[t] = thread(&PartyR::prfEncryptThread, this, t * numbitsForEachThread, (t + 1) * numbitsForEachThread, split, ref(partialInputsAsBytesArr));
+        }
+        else {
+            threadsAes[t] = thread(&PartyR::prfEncryptThread, this, t * numbitsForEachThread, SPLIT_FIELD_SIZE_BITS, split, ref(partialInputsAsBytesArr));
+        }
+    }
+    for (int t=0; t<numOfThreads; t++){
+        threadsAes[t].join();
     }
 
 
-
-    //Poly::interpolateMersenne(polyP, inputs, yArr);
-
     auto end = std::chrono::system_clock::now();
     auto elapsed_ms = std::chrono::duration_cast<std::chrono::milliseconds>(end - all).count();
-    cout << "   PartyR - calc PRF " << elapsed_ms << " milliseconds" << endl;
+    //cout << "   PartyR - calc PRF " << elapsed_ms << " milliseconds" << endl;
 
 
     //in this stage we have the entire matrix but not with a single bit, rather with 128 bits
@@ -369,37 +358,36 @@ void PartyR::buildPolinomial(int split){
         fill(uRows[i].begin(), uRows[i].end(), 0);
     }
 
-//if(split==0)
-    //omp_set_num_threads(numOfThreads);
-    //#pragma omp parallel for //opem mp parallelism for for loops. TODO switch to c++11 threads
 
-    //extract a single bit from each 128 bit cipher
-    for (int j = 0; j < SPLIT_FIELD_SIZE_BITS; j++) {//go column by column instead of row by row for performance
-        unsigned long temp = 0;
-        for(int i=0; i<numOfItems;i++) {
+    //to avoid syncronization between threads work with batches of 8 that create the same bytes
+    int numParallelized = (SPLIT_FIELD_SIZE_BITS+7)/8;
+    int numBytesForEachThread;
+    int currNumThreads = numOfThreads;
 
-//
-            //get first byte from the entires encryption
-            temp = tbitArr[SPLIT_FIELD_SIZE_BITS * split + j][i * 16] & 1;
+    if (numParallelized <= numOfThreads){
+        currNumThreads = numParallelized;
+        numBytesForEachThread = 1;
+    } else{
+        numBytesForEachThread = (numParallelized + currNumThreads - 1)/ currNumThreads;
+    }
 
-
-            //get the bit in the right position
-            tRows[i][j / 8] += (temp << (j % 8));//TODO consider shifting
-
-
-
-            //get first byte from the entires encryption
-            temp = ubitArr[SPLIT_FIELD_SIZE_BITS * split + j][i * 16] & 1;
-
-            //get the bit in the right position
-            uRows[i][j / 8] += (temp << (j % 8));
-
+    vector<thread> threads(currNumThreads);
+    for (int t=0; t<currNumThreads; t++) {
+        if ((t + 1) * numBytesForEachThread*8 <= SPLIT_FIELD_SIZE_BITS) {
+            threads[t] = thread(&PartyR::extractBitsThread, this, t * numBytesForEachThread*8, (t + 1) *8 * numBytesForEachThread, split);
+        } else {
+            threads[t] = thread(&PartyR::extractBitsThread, this, 8*t * numBytesForEachThread, SPLIT_FIELD_SIZE_BITS, split);
         }
     }
+    for (int t=0; t<currNumThreads; t++){
+        threads[t].join();
+    }
+
+
 
     end = std::chrono::system_clock::now();
     elapsed_ms = std::chrono::duration_cast<std::chrono::milliseconds>(end - all).count();
-    cout << "   PartyR - extract bits took " << elapsed_ms << " milliseconds" << endl;
+    //cout << "   PartyR - extract bits took " << elapsed_ms << " milliseconds" << endl;
 
     all = scapi_now();
     for(int i=0; i<numOfItems;i++){
@@ -431,7 +419,7 @@ void PartyR::buildPolinomial(int split){
 
     end = std::chrono::system_clock::now();
     elapsed_ms = std::chrono::duration_cast<std::chrono::milliseconds>(end - all).count();
-    cout << "   PartyR - generate y's took " << elapsed_ms << " milliseconds" << endl;
+    //cout << "   PartyR - generate y's took " << elapsed_ms << " milliseconds" << endl;
 
 
     //interpolate on input,y cordinates
@@ -450,6 +438,64 @@ void PartyR::buildPolinomial(int split){
 
 
     //cout<<polyP;
+}
+
+void PartyR::prfEncryptThread(int start, int end, int split, vector<byte> &partialInputsAsBytesArr) {
+
+    //cout<<"thread num "<<start<< " range is "<<"("<<start<<","<<end<<")"<<endl;
+    SecretKey key;
+    //go over each column and encrypt each input for each column
+    for(int i=start; i<end; i++){
+
+        key = SecretKey(T.data() + 16 * (SPLIT_FIELD_SIZE_BITS*split + i), 16, "aes");
+
+        //cout<<"keyt "<<i<<" " <<(int)key.getEncoded()[0]<<endl;
+
+        aesArr[SPLIT_FIELD_SIZE_BITS*split + i].setKey(key);
+        //aes.setKey(key);
+
+        aesArr[SPLIT_FIELD_SIZE_BITS*split + i].optimizedCompute(partialInputsAsBytesArr, tbitArr[SPLIT_FIELD_SIZE_BITS*split + i]);
+
+        key = SecretKey(U.data() + 16 * (SPLIT_FIELD_SIZE_BITS*split + i), 16, "aes");
+
+        //cout<<"keyu "<<i<<" " <<(int)key.getEncoded()[0]<<endl;
+        aesArr[SPLIT_FIELD_SIZE_BITS*split + i].setKey(key);
+        //aes.setKey(key);
+
+        aesArr[SPLIT_FIELD_SIZE_BITS*split + i].optimizedCompute(partialInputsAsBytesArr, ubitArr[SPLIT_FIELD_SIZE_BITS*split + i]);
+    }
+
+}
+
+
+void PartyR::extractBitsThread(int start, int end, int split){
+
+    //cout<<"thread num "<<start/8<< " range is "<<"("<<start<<","<<end<<")"<<endl;
+    for (int j = start; j < end; j++) {//go column by column instead of row by row for performance
+        unsigned long temp = 0;
+        for(int i=0; i<numOfItems;i++) {
+
+//
+            //get first byte from the entires encryption
+            temp = tbitArr[SPLIT_FIELD_SIZE_BITS * split + j][i * 16] & 1;
+
+
+            //get the bit in the right position
+            tRows[i][j / 8] += (temp << (j % 8));//TODO consider shifting
+
+
+
+            //get first byte from the entires encryption
+            temp = ubitArr[SPLIT_FIELD_SIZE_BITS * split + j][i * 16] & 1;
+
+            //get the bit in the right position
+            uRows[i][j / 8] += (temp << (j % 8));
+
+        }
+    }
+
+
+
 }
 
 void PartyR::setInputsToByteVector(int offset, int numOfItemsToConvert, vector<byte> & inputsAsBytesArr) {
@@ -538,7 +584,7 @@ void PartyR::calcOutput(){
 
     vector<byte> zElement(sizeOfHashedMsg);
 
-    int amount = 0;
+    //int amount = 0;
 
 //    for(int i=0; i<zSha.size()/sizeOfHashedMsg; i++){
 //
@@ -606,3 +652,21 @@ void PartyR::calcOutput(){
 
 
 }
+
+void PartyR::writeResultsToFile(){
+
+    string result="Failure";
+
+    if(amount==numOfItems)
+        result = "Success";
+
+    string fileName = result + "PartyRItems="+ to_string(numOfItems) +"["+to_string(SPLIT_FIELD_SIZE_BITS)+" x "
+                      +to_string(NUM_OF_SPLITS)+"]"+"NumOfThreads"+to_string(numOfThreads)+  ".txt";
+    ofstream myfile (fileName.c_str());
+    if (myfile.is_open())
+    {
+        myfile << "number of matches is "<<amount<<"\n";
+        myfile.close();
+    }
+}
+

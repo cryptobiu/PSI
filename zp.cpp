@@ -281,7 +281,7 @@ void evaluate (ZZ_pX& P, ZZ_pX* tree, ZZ_pX* reminders , unsigned int tree_size,
     auto begin1 = steady_clock::now();
     //set the reminder of the root
     //reminders[0] = P%tree[0];
-    //reminders[0] = P;
+    reminders[0] = P;
     reminders[1] = P;
     reminders[2] = P;
 
@@ -406,9 +406,9 @@ void multipoint_evaluate_zp(ZZ_pX& P, ZZ_p* x, ZZ_p* y, long degree, int numThre
     chrono::steady_clock::time_point end2 = steady_clock::now();
 
 
-    cout << "Building tree: " << duration_cast<milliseconds>(end1 - begin1).count() << " ms" << endl;
-    cout << "Evaluating points: " << duration_cast<milliseconds>(end2 - begin2).count() << " ms" << endl;
-    cout << "Total: " << duration_cast<milliseconds>(end1 - begin1).count()+ duration_cast<milliseconds>(end2 - begin2).count() << " ms" << endl;
+    //cout << "Building tree: " << duration_cast<milliseconds>(end1 - begin1).count() << " ms" << endl;
+    //cout << "Evaluating points: " << duration_cast<milliseconds>(end2 - begin2).count() << " ms" << endl;
+    //cout << "Total: " << duration_cast<milliseconds>(end1 - begin1).count()+ duration_cast<milliseconds>(end2 - begin2).count() << " ms" << endl;
 
 
     //test_evaluate(P,x,y,10);
@@ -475,7 +475,7 @@ void iterative_interpolate_zp(ZZ_pX& resultP, ZZ_pX* temp, ZZ_p* y, ZZ_p* a, ZZ_
     vector<vector<int>> subs(numThreads);
     generateSubTreeArrays(subs, tree_size/2, numThreads-1);
     auto end1 = steady_clock::now();
-    cout << "inter - generate sub trees: " << duration_cast<milliseconds>(end1 - begin1).count() << " ms" << endl;
+    //cout << "inter - generate sub trees: " << duration_cast<milliseconds>(end1 - begin1).count() << " ms" << endl;
 
 
     begin1 = steady_clock::now();
@@ -494,7 +494,7 @@ void iterative_interpolate_zp(ZZ_pX& resultP, ZZ_pX* temp, ZZ_p* y, ZZ_p* a, ZZ_
     }
 
     end1 = steady_clock::now();
-    cout << "interpolate - threads part: " << duration_cast<milliseconds>(end1 - begin1).count() << " ms" << endl;
+    //cout << "interpolate - threads part: " << duration_cast<milliseconds>(end1 - begin1).count() << " ms" << endl;
 
 
 //    begin1 = steady_clock::now();
@@ -582,9 +582,9 @@ void prepareForInterpolate(ZZ_p *x, long degree, ZZ_pX *M, ZZ_p *a, int numThrea
     end[3] = system_clock::now();
 //    test_evaluate(D,x,a,degree+1);
 
-    //cout << "Building tree: " << duration_cast<milliseconds>(end[1] - begin[1]).count() << " ms" << endl;
-    //cout << "Differentiate: " << duration_cast<milliseconds>(end[2] - begin[2]).count() << " ms" << endl;
-    //cout << "Evaluate diff: " << duration_cast<milliseconds>(end[3] - begin[3]).count() << " ms" << endl;
+    cout << "Building tree: " << duration_cast<milliseconds>(end[1] - begin[1]).count() << " ms" << endl;
+    cout << "Differentiate: " << duration_cast<milliseconds>(end[2] - begin[2]).count() << " ms" << endl;
+    cout << "Evaluate diff: " << duration_cast<milliseconds>(end[3] - begin[3]).count() << " ms" << endl;
 
 }
 
