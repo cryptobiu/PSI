@@ -6,6 +6,38 @@
 int main(int argc, char* argv[]) {
     std::cout << "Run Protocol" << std::endl;
 
+    CmdParser parser;
+    auto parameters = parser.parseArguments("", argc, argv);
+    int partyNum = stoi(parameters["partyID"]);
+
+    if (partyNum == 0) {
+        // create Party one with the previous created objects.
+        PartyR pR(argc, argv);
+
+        auto all = scapi_now();
+        pR.runProtocol();
+        auto end = std::chrono::system_clock::now();
+        int elapsed_ms = std::chrono::duration_cast<std::chrono::milliseconds>(end - all).count();
+        cout << "********************* PartyR ********\nRunning took " << elapsed_ms << " milliseconds" << endl;
+
+
+        //write the results to file
+        pR.writeResultsToFile();
+
+    }
+    else if (partyNum == 1) {
+        auto all = scapi_now();
+        PartyS pS(argc, argv);
+        pS.runProtocol();
+        auto end = std::chrono::system_clock::now();
+        int elapsed_ms = std::chrono::duration_cast<std::chrono::milliseconds>(end - all).count();
+        cout << "********************* PartyS ********\nRunning took " << elapsed_ms << " milliseconds" << endl;
+    }
+
+
+    return 0;
+
+
 
     //ZZ prime(2305843009213693951);
 //    ZZ_p::init(ZZ(2305843009213693951));
@@ -42,36 +74,4 @@ int main(int argc, char* argv[]) {
 ////    cout << "Building tree - total: " << duration_cast<milliseconds>(end1 - begin1).count() << " ms" << endl;
 
 
-
-
-    CmdParser parser;
-    auto parameters = parser.parseArguments("", argc, argv);
-    int partyNum = stoi(parameters["partyID"]);
-
-    if (partyNum == 0) {
-        // create Party one with the previous created objects.
-        PartyR pR(argc, argv);
-
-        auto all = scapi_now();
-        pR.runProtocol();
-        auto end = std::chrono::system_clock::now();
-        int elapsed_ms = std::chrono::duration_cast<std::chrono::milliseconds>(end - all).count();
-        cout << "********************* PartyR ********\nRunning took " << elapsed_ms << " milliseconds" << endl;
-
-
-        //write the results to file
-        pR.writeResultsToFile();
-
-    }
-    else if (partyNum == 1) {
-        auto all = scapi_now();
-        PartyS pS(argc, argv);
-        pS.runProtocol();
-        auto end = std::chrono::system_clock::now();
-        int elapsed_ms = std::chrono::duration_cast<std::chrono::milliseconds>(end - all).count();
-        cout << "********************* PartyS ********\nRunning took " << elapsed_ms << " milliseconds" << endl;
-    }
-
-
-    return 0;
 }

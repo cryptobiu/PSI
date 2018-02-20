@@ -18,6 +18,7 @@
 
 using namespace NTL;
 
+
 class Party : public Protocol{
 protected:
 

@@ -35,13 +35,6 @@ PartyR::PartyR(int argc, char* argv[]): Party(argc, argv) {
     cout<<"my ip: "<<me.getIpAddress() <<"port:"<<me.getPort()<<endl;
     cout<<"other ip: "<<other.getIpAddress() <<"port:"<<other.getPort()<<endl;
     channel = make_shared<CommPartyTCPSynced>(io_service, me, other);
-    //SocketPartyData me(IpAddress::from_string("127.0.0.1"), 1213 +100*groupNum);
-//    SocketPartyData me(IpAddress::from_string(arguments["myIP"]), stoi(arguments["myPort"]) +100*groupNum);
-
-   // SocketPartyData other(IpAddress::from_string("127.0.0.1"), 1212+100*groupNum);
-//    SocketPartyData other(IpAddress::from_string(arguments["otherIP"]), stoi(arguments["otherPort"])+100*groupNum);
-
-//    channel = make_shared<CommPartyTCPSynced>(io_service, me, other);
 
     SocketPartyData senderParty(IpAddress::from_string(sender_ip), sender_port +100*groupNum);
     otSender = new OTExtensionBristolSender(senderParty.getPort(), true, channel);
@@ -70,7 +63,8 @@ PartyR::PartyR(int argc, char* argv[]): Party(argc, argv) {
     BytesFromZZ(primeBytes,prime,SIZE_SPLIT_FIELD_BYTES);
 
     channel->write(primeBytes, SIZE_SPLIT_FIELD_BYTES);
-    cout<<"prime is" <<prime<<endl;
+    if(FLAG_PRINT)
+        cout<<"prime is" <<prime<<endl;
 
 
 //    string str("170141183460469231731687303715884105727");
@@ -83,17 +77,15 @@ PartyR::PartyR(int argc, char* argv[]): Party(argc, argv) {
 
 
     //Do as much memory allocation as possible before running the protocol
+    //TODO Reconsider for a large number of items
     yArr.resize(numOfItems);
 
     tRows.resize(numOfItems);
     uRows.resize(numOfItems);
-    zRows.resize(numOfItems);
     for(int i=0; i<numOfItems; i++){
 
         tRows[i].resize(SIZE_SPLIT_FIELD_BYTES);
         uRows[i].resize(SIZE_SPLIT_FIELD_BYTES);
-        zRows[i].resize(SIZE_SPLIT_FIELD_BYTES);
-
 
     }
 
@@ -156,7 +148,8 @@ void PartyR::runProtocol(){
     timer->endSubTask("Offline", currentIteration);
     auto end = std::chrono::system_clock::now();
     int elapsed_ms = std::chrono::duration_cast<std::chrono::microseconds>(end - all).count();
-    cout << "PartyR - runOT took " << elapsed_ms << " microseconds" << endl;
+    if(FLAG_PRINT_TIMINGS)
+        cout << "PartyR - runOT took " << elapsed_ms << " microseconds" << endl;
 
     all = scapi_now();
     timer->startSubTask("Online", currentIteration); //start online
@@ -165,7 +158,8 @@ void PartyR::runProtocol(){
     timer->endSubTask("PrepareInterpolateValues", currentIteration);
     end = std::chrono::system_clock::now();
     elapsed_ms = std::chrono::duration_cast<std::chrono::microseconds>(end - all).count();
-    cout << "PartyR - prepareInterpolateValues took " << elapsed_ms << " microseconds" << endl;
+    if(FLAG_PRINT_TIMINGS)
+        cout << "PartyR - prepareInterpolateValues took " << elapsed_ms << " microseconds" << endl;
 
     for(int i=0; i<NUM_OF_SPLITS; i++) {
 
@@ -176,7 +170,8 @@ void PartyR::runProtocol(){
 //        timer->endSubTask(4 + i*2, currentIteration);
         end = std::chrono::system_clock::now();
         elapsed_ms = std::chrono::duration_cast<std::chrono::milliseconds>(end - all).count();
-        cout << "PartyR - buildPolinomial took " << elapsed_ms << " milliseconds" << endl;
+        if(FLAG_PRINT_TIMINGS)
+            cout << "PartyR - buildPolinomial took " << elapsed_ms << " milliseconds" << endl;
 
         all = scapi_now();
 //        timer->startSubTask(5 + i*2, currentIteration);
@@ -184,7 +179,8 @@ void PartyR::runProtocol(){
 //        timer->endSubTask(5 + i*2, currentIteration);
         end = std::chrono::system_clock::now();
         elapsed_ms = std::chrono::duration_cast<std::chrono::milliseconds>(end - all).count();
-        cout << "PartyR - sendCoeffs took " << elapsed_ms << " milliseconds" << endl;
+        if(FLAG_PRINT_TIMINGS)
+            cout << "PartyR - sendCoeffs took " << elapsed_ms << " milliseconds" << endl;
     }
     all = scapi_now();
 //    timer->startSubTask(4 + NUM_OF_SPLITS * 2, currentIteration);
@@ -192,7 +188,8 @@ void PartyR::runProtocol(){
 //    timer->endSubTask(4 + NUM_OF_SPLITS * 2, currentIteration);
     end = std::chrono::system_clock::now();
     elapsed_ms = std::chrono::duration_cast<std::chrono::milliseconds>(end - all).count();
-    cout << "PartyR - recieveHashValues took " << elapsed_ms << " milliseconds" << endl;
+    if(FLAG_PRINT_TIMINGS)
+        cout << "PartyR - recieveHashValues took " << elapsed_ms << " milliseconds" << endl;
 
 
     all = scapi_now();
@@ -202,7 +199,8 @@ void PartyR::runProtocol(){
     timer->endSubTask("Online", currentIteration); //end online
     end = std::chrono::system_clock::now();
     elapsed_ms = std::chrono::duration_cast<std::chrono::milliseconds>(end - all).count();
-    cout << "PartyR - calcOutput took " << elapsed_ms << " milliseconds" << endl;
+    if(FLAG_PRINT_TIMINGS)
+        cout << "PartyR - calcOutput took " << elapsed_ms << " milliseconds" << endl;
 }
 
 void PartyR::runOnline() {
@@ -213,7 +211,8 @@ void PartyR::runOnline() {
     timer->endSubTask("PrepareInterpolateValues", currentIteration);
     auto end = std::chrono::system_clock::now();
     auto elapsed_ms = std::chrono::duration_cast<std::chrono::microseconds>(end - all).count();
-    cout << "PartyR - prepareInterpolateValues took " << elapsed_ms << " microseconds" << endl;
+    if(FLAG_PRINT_TIMINGS)
+        cout << "PartyR - prepareInterpolateValues took " << elapsed_ms << " microseconds" << endl;
 
     for(int i=0; i<NUM_OF_SPLITS; i++) {
 
@@ -224,7 +223,8 @@ void PartyR::runOnline() {
 //        timer->endSubTask(4 + i*2, currentIteration);
         end = std::chrono::system_clock::now();
         elapsed_ms = std::chrono::duration_cast<std::chrono::milliseconds>(end - all).count();
-        cout << "PartyR - buildPolinomial took " << elapsed_ms << " milliseconds" << endl;
+        if(FLAG_PRINT_TIMINGS)
+            cout << "PartyR - buildPolinomial took " << elapsed_ms << " milliseconds" << endl;
 
         all = scapi_now();
 //        timer->startSubTask(5 + i*2, currentIteration);
@@ -232,7 +232,8 @@ void PartyR::runOnline() {
 //        timer->endSubTask(5 + i*2, currentIteration);
         end = std::chrono::system_clock::now();
         elapsed_ms = std::chrono::duration_cast<std::chrono::milliseconds>(end - all).count();
-        cout << "PartyR - sendCoeffs took " << elapsed_ms << " milliseconds" << endl;
+        if(FLAG_PRINT_TIMINGS)
+            cout << "PartyR - sendCoeffs took " << elapsed_ms << " milliseconds" << endl;
     }
     all = scapi_now();
 //    timer->startSubTask(4 + NUM_OF_SPLITS * 2, currentIteration);
@@ -240,7 +241,8 @@ void PartyR::runOnline() {
 //    timer->endSubTask(4 + NUM_OF_SPLITS * 2, currentIteration);
     end = std::chrono::system_clock::now();
     elapsed_ms = std::chrono::duration_cast<std::chrono::milliseconds>(end - all).count();
-    cout << "PartyR - recieveHashValues took " << elapsed_ms << " milliseconds" << endl;
+    if(FLAG_PRINT_TIMINGS)
+        cout << "PartyR - recieveHashValues took " << elapsed_ms << " milliseconds" << endl;
 
 
     all = scapi_now();
@@ -250,7 +252,8 @@ void PartyR::runOnline() {
     timer->endSubTask("Online", currentIteration);
     end = std::chrono::system_clock::now();
     elapsed_ms = std::chrono::duration_cast<std::chrono::milliseconds>(end - all).count();
-    cout << "PartyR - calcOutput took " << elapsed_ms << " milliseconds" << endl;
+    if(FLAG_PRINT_TIMINGS)
+        cout << "PartyR - calcOutput took " << elapsed_ms << " milliseconds" << endl;
 
 }
 void PartyR::runOffline() {
@@ -262,7 +265,8 @@ void PartyR::runOffline() {
     timer->endSubTask("Offline", currentIteration);
     auto end = std::chrono::system_clock::now();
     int elapsed_ms = std::chrono::duration_cast<std::chrono::microseconds>(end - all).count();
-    cout << "PartyR - runOT took " << elapsed_ms << " microseconds" << endl;
+    if(FLAG_PRINT_TIMINGS)
+        cout << "PartyR - runOT took " << elapsed_ms << " microseconds" << endl;
 
 }
 
@@ -279,28 +283,30 @@ void PartyR::runOT(){
 
     T = ((OTExtensionRandomizedSOutput *) output.get())->getR0Arr();
 
-//    cout << "the size is :" << T.size() << " r0Arr " << endl;
-//    for (int i = 0; i < nOTs * elementSize / 8; i++) {
-//
-//        if (i % (elementSize / 8) == 0) {
-//            cout << endl;
-//        }
-//        cout << (int) T[i] << "--";
-//
-//    }
+    if(FLAG_PRINT_TIMINGS) {
+        cout << "the size is :" << T.size() << " r0Arr " << endl;
+        for (int i = 0; i < nOTs * elementSize / 8; i++) {
 
+            if (i % (elementSize / 8) == 0) {
+                cout << endl;
+            }
+            cout << (int) T[i] << "--";
+
+        }
+    }
     U = ((OTExtensionRandomizedSOutput *) output.get())->getR1Arr();
 
-//    cout << "the size is :" << U.size() << " r1Arr " << endl;
-//    for (int i = 0; i < nOTs * elementSize / 8; i++) {
-//
-//        if (i % (elementSize / 8) == 0) {
-//            cout << endl;
-//        }
-//        cout << (int) U[i] << "--";
-//
-//    }
+    if(FLAG_PRINT_TIMINGS) {
+        cout << "the size is :" << U.size() << " r1Arr " << endl;
+        for (int i = 0; i < nOTs * elementSize / 8; i++) {
 
+            if (i % (elementSize / 8) == 0) {
+                cout << endl;
+            }
+            cout << (int) U[i] << "--";
+
+        }
+    }
 
 }
 void PartyR::prepareInterpolateValues(){
@@ -341,7 +347,8 @@ void PartyR::buildPolinomial(int split){
 
     auto end = std::chrono::system_clock::now();
     auto elapsed_ms = std::chrono::duration_cast<std::chrono::milliseconds>(end - all).count();
-    //cout << "   PartyR - calc PRF " << elapsed_ms << " milliseconds" << endl;
+    if(FLAG_PRINT_TIMINGS)
+        cout << "   PartyR - calc PRF " << elapsed_ms << " milliseconds" << endl;
 
 
     //in this stage we have the entire matrix but not with a single bit, rather with 128 bits
@@ -386,13 +393,16 @@ void PartyR::buildPolinomial(int split){
 
     end = std::chrono::system_clock::now();
     elapsed_ms = std::chrono::duration_cast<std::chrono::milliseconds>(end - all).count();
-    //cout << "   PartyR - extract bits took " << elapsed_ms << " milliseconds" << endl;
+    if(FLAG_PRINT_TIMINGS)
+        cout << "   PartyR - extract bits took " << elapsed_ms << " milliseconds" << endl;
 
     all = scapi_now();
     for(int i=0; i<numOfItems;i++){
-//        cout<<"temp t" <<i<< " " << (int)(tRows[i][0]&1)<< "   ";
-//        cout<<"temp u" <<i<< " " << (int)(uRows[i][0]&1);
-//        cout<<endl;
+        if(FLAG_PRINT) {
+            cout << "temp t" << i << " " << (int) (tRows[i][0] & 1) << "   ";
+            cout << "temp u" << i << " " << (int) (uRows[i][0] & 1);
+            cout << endl;
+        }
 
 
         //TODO check vectorization. Change to flat byte arrays.
@@ -400,9 +410,11 @@ void PartyR::buildPolinomial(int split){
         for(int j=0; j<SIZE_SPLIT_FIELD_BYTES; j++){
             tempArr[i][j] = tRows[i][j] ^ uRows[i][j];
 
-            //cout<<(int) tRows[i][j] << " - ";
+            if(FLAG_PRINT)
+                cout<<(int) tRows[i][j] << " - ";
         }
-       // cout<<endl;
+        if(FLAG_PRINT)
+            cout<<endl;
 
         tSplitRows[split][i] = tRows[i];
 
@@ -418,7 +430,8 @@ void PartyR::buildPolinomial(int split){
 
     end = std::chrono::system_clock::now();
     elapsed_ms = std::chrono::duration_cast<std::chrono::milliseconds>(end - all).count();
-    //cout << "   PartyR - generate y's took " << elapsed_ms << " milliseconds" << endl;
+    if(FLAG_PRINT_TIMINGS)
+        cout << "   PartyR - generate y's took " << elapsed_ms << " milliseconds" << endl;
 
 
     //interpolate on input,y cordinates
@@ -433,10 +446,11 @@ void PartyR::buildPolinomial(int split){
     //test_interpolation_result_zp(polyP, inputs.data(), yArr.data(), numOfItems - 1);
     end = std::chrono::system_clock::now();
     elapsed_ms = std::chrono::duration_cast<std::chrono::milliseconds>(end - all).count();
-    cout << "   PartyR - interpolate took " << elapsed_ms << " milliseconds" << endl;
+    if(FLAG_PRINT_TIMINGS)
+        cout << "   PartyR - interpolate took " << elapsed_ms << " milliseconds" << endl;
 
-
-    //cout<<polyP;
+    if(FLAG_PRINT)
+        cout<<polyP;
 }
 
 void PartyR::prfEncryptThread(int start, int end, int split, vector<byte> &partialInputsAsBytesArr) {
@@ -602,10 +616,9 @@ void PartyR::calcOutput(){
 //    }
 
 
-   // omp_set_num_threads(4);
 
-    //TODO improve threads performance. Note that the current map find is not thread safe.
-//#pragma omp parallel for
+    //TODO improve threads performance. Note that the current map find is not thread safe. Consider different data structure with threads
+
     for(int i=0; i<numOfItems; i++){
 
         zElement.assign(zSha.data() + i*neededHashSize, zSha.data() + (i+1)*neededHashSize);
@@ -615,10 +628,10 @@ void PartyR::calcOutput(){
         //if(mLong.find(elemLong) != mLong.end()){
         if(m.find(zElement) != m.end()){
 
-   // #pragma omp atomic
             amount++;
 
-            //cout<<"found a match for index "<< i  <<endl;
+            if(FLAG_PRINT)
+                cout<<"found a match for index "<< i  <<endl;
         }
     }
 

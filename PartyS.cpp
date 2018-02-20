@@ -89,10 +89,11 @@ PartyS::PartyS(int argc, char* argv[] ) : Party(argc, argv){
 
 
     ZZ_p::init(ZZ(prime));
-//
-//
-//
-//    cout<<"prime" << prime;
+
+
+
+    if(FLAG_PRINT)
+        cout<<"prime" << prime;
 
 
 
@@ -157,7 +158,8 @@ void PartyS::runProtocol(){
     timer->endSubTask("ChooseS", currentIteration);
     auto end = std::chrono::system_clock::now();
     int elapsed_ms = std::chrono::duration_cast<std::chrono::microseconds>(end - all).count();
-    cout << "PartyS - chooseS took " << elapsed_ms << " microseconds" << endl;
+    if(FLAG_PRINT_TIMINGS)
+        cout << "PartyS - chooseS took " << elapsed_ms << " microseconds" << endl;
 
     all = scapi_now();
     timer->startSubTask("RunOT", currentIteration);
@@ -166,7 +168,8 @@ void PartyS::runProtocol(){
     timer->endSubTask("Offline", currentIteration); //end of offline
     end = std::chrono::system_clock::now();
     elapsed_ms = std::chrono::duration_cast<std::chrono::microseconds>(end - all).count();
-    cout << "PartyS - runOT took " << elapsed_ms << " microseconds" << endl;
+    if(FLAG_PRINT_TIMINGS)
+        cout << "PartyS - runOT took " << elapsed_ms << " microseconds" << endl;
 
     timer->startSubTask("Online", currentIteration);
     timer->startSubTask("PrepareQ", currentIteration);
@@ -183,7 +186,8 @@ void PartyS::runProtocol(){
 //        timer->endSubTask(6 + i*2, currentIteration);
         end = std::chrono::system_clock::now();
         elapsed_ms = std::chrono::duration_cast<std::chrono::milliseconds>(end - all).count();
-        cout << "PartyS - recieveCoeffs took " << elapsed_ms << " milliseconds" << endl;
+        if(FLAG_PRINT_TIMINGS)
+            cout << "PartyS - recieveCoeffs took " << elapsed_ms << " milliseconds" << endl;
 
         all = scapi_now();
 //        timer->startSubTask(7 + i*2, currentIteration);
@@ -191,7 +195,8 @@ void PartyS::runProtocol(){
 //        timer->endSubTask(7 + i*2, currentIteration);
         end = std::chrono::system_clock::now();
         elapsed_ms = std::chrono::duration_cast<std::chrono::milliseconds>(end - all).count();
-        cout << "PartyS - evalAndSet took " << elapsed_ms << " milliseconds" << endl;
+        if(FLAG_PRINT_TIMINGS)
+            cout << "PartyS - evalAndSet took " << elapsed_ms << " milliseconds" << endl;
         all = scapi_now();
     }
 //    timer->startSubTask(6 + NUM_OF_SPLITS*2, currentIteration);
@@ -200,7 +205,8 @@ void PartyS::runProtocol(){
 //    timer->endSubTask("Online", currentIteration); //end of online
     end = std::chrono::system_clock::now();
     elapsed_ms = std::chrono::duration_cast<std::chrono::milliseconds>(end - all).count();
-    cout << "PartyS - sendHashValues took " << elapsed_ms << " milliseconds" << endl;
+    if(FLAG_PRINT_TIMINGS)
+        cout << "PartyS - sendHashValues took " << elapsed_ms << " milliseconds" << endl;
 
 
 }
@@ -223,7 +229,8 @@ void PartyS::runOnline() {
 //        timer->endSubTask(6 + i*2, currentIteration);
         end = std::chrono::system_clock::now();
         elapsed_ms = std::chrono::duration_cast<std::chrono::milliseconds>(end - all).count();
-        cout << "PartyS - recieveCoeffs took " << elapsed_ms << " milliseconds" << endl;
+        if(FLAG_PRINT_TIMINGS)
+            cout << "PartyS - recieveCoeffs took " << elapsed_ms << " milliseconds" << endl;
 
         all = scapi_now();
 //        timer->startSubTask(7 + i*2, currentIteration);
@@ -231,7 +238,8 @@ void PartyS::runOnline() {
 //        timer->endSubTask(7 + i*2, currentIteration);
         end = std::chrono::system_clock::now();
         elapsed_ms = std::chrono::duration_cast<std::chrono::milliseconds>(end - all).count();
-        cout << "PartyS - evalAndSet took " << elapsed_ms << " milliseconds" << endl;
+        if(FLAG_PRINT_TIMINGS)
+            cout << "PartyS - evalAndSet took " << elapsed_ms << " milliseconds" << endl;
         all = scapi_now();
     }
 //    timer->startSubTask(6 + NUM_OF_SPLITS*2, currentIteration);
@@ -240,7 +248,8 @@ void PartyS::runOnline() {
     timer->endSubTask("Online", currentIteration); //end of online
     end = std::chrono::system_clock::now();
     elapsed_ms = std::chrono::duration_cast<std::chrono::milliseconds>(end - all).count();
-    cout << "PartyS - sendHashValues took " << elapsed_ms << " milliseconds" << endl;
+    if(FLAG_PRINT_TIMINGS)
+        cout << "PartyS - sendHashValues took " << elapsed_ms << " milliseconds" << endl;
 
 }
 
@@ -252,7 +261,8 @@ void PartyS::runOffline() {
     timer->endSubTask("ChooseS", currentIteration);
     auto end = std::chrono::system_clock::now();
     int elapsed_ms = std::chrono::duration_cast<std::chrono::microseconds>(end - all).count();
-    cout << "PartyS - chooseS took " << elapsed_ms << " microseconds" << endl;
+    if(FLAG_PRINT_TIMINGS)
+        cout << "PartyS - chooseS took " << elapsed_ms << " microseconds" << endl;
 
     all = scapi_now();
     timer->startSubTask("RunOT", currentIteration);
@@ -261,7 +271,9 @@ void PartyS::runOffline() {
     timer->endSubTask("Offline", currentIteration); //end of offline
     end = std::chrono::system_clock::now();
     elapsed_ms = std::chrono::duration_cast<std::chrono::microseconds>(end - all).count();
-    cout << "PartyS - runOT took " << elapsed_ms << " microseconds" << endl;
+
+    if(FLAG_PRINT_TIMINGS)
+        cout << "PartyS - runOT took " << elapsed_ms << " microseconds" << endl;
 
 }
 
@@ -345,10 +357,6 @@ void PartyS::prepareEvalValues(){
 
 void PartyS::recieveCoeffs(int split){
 
-
-
-
-
     //recieve the coefficients from R
 
     vector<byte> polyBytes(numOfItems*SIZE_SPLIT_FIELD_BYTES);
@@ -357,7 +365,8 @@ void PartyS::recieveCoeffs(int split){
 
     BytesToZZ_px(polyBytes.data(), polyP, numOfItems, SIZE_SPLIT_FIELD_BYTES);
 
-    //cout<<polyP;
+    if(FLAG_PRINT)
+        cout<<polyP;
 
 }
 
@@ -462,7 +471,8 @@ void PartyS::sendHashValues(){
 
     auto end = std::chrono::system_clock::now();
     int elapsed_ms = std::chrono::duration_cast<std::chrono::milliseconds>(end - all).count();
-    cout << "   PartyS - eval and prepare to send took " << elapsed_ms << " milliseconds" << endl;
+    if(FLAG_PRINT_TIMINGS)
+        cout << "   PartyS - eval and prepare to send took " << elapsed_ms << " milliseconds" << endl;
 
     channel->write(zSha.data(), zSha.size());
 
@@ -487,13 +497,14 @@ void PartyS::evalAndSet(int split)  {
 
             zRows[split][i][j] = qRows[split][i][j] ^ (evaluatedElem[j] & sElements[SIZE_SPLIT_FIELD_BYTES*split + j]);
 
-            //cout<<(int) zRows[split][i][j] << " - ";
+            if(FLAG_PRINT)
+                cout<<(int) zRows[split][i][j] << " - ";
 
         }
 
 
-
-        //cout<<endl;
+        if(FLAG_PRINT)
+            cout<<endl;
 
 
 

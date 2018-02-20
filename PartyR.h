@@ -18,14 +18,8 @@
 
 class PartyR : public Party {
 
-//    boost::asio::io_service io_service;
-//    shared_ptr<CommParty> channel;			//The channel between both parties.
 
-//    vector<ZZ_p> inputs;//the elements to check the intersection
-//    ZZ_pX polyP;//the elements to check the intersection
-
-
-//    int numOfItems;//the size of the set
+private:
 
     vector<byte> T;//the first array for the input of the ot's
     vector<byte> U;//the second array for the input of the ot's
@@ -34,9 +28,6 @@ class PartyR : public Party {
     vector<vector<byte>>uRows;//TODO use better data structures to keep data sequential
     vector<vector<byte>>zRows;//TODO use better data structures to keep data sequential
 
-//    OpenSSLSHA256 hash;//consider using a weaker hash
-//    vector<OpenSSLAES> aesArr;//array that holds an aes encryptor for each bit
-//    vector<byte> zSha;
     vector<vector<byte>> tSha;
 
     vector<vector<byte>>tbitArr;
@@ -53,7 +44,6 @@ class PartyR : public Party {
 
     int amount=0;//amout of items matched
 
-//    vector<ZZ_p> yArr;
 
 
 
@@ -75,13 +65,17 @@ public:
         }
     }
 
+    void runProtocol();
+
     void runOnline() override;
 
     void runOffline() override;
 
-    void getInput();
+    void writeResultsToFile();
 
-    void runProtocol();
+private:
+
+    void getInput();
 
     void runOT();
 
@@ -101,10 +95,6 @@ public:
     void setInputsToByteVector(int offset, int numOfItemsToConvert,vector<byte> & inputsAsBytesArr);
 
     void calcHashValues();
-
-    void writeResultsToFile();
-
-
 
 };
 
