@@ -17,7 +17,7 @@ Party::Party(int argc, char* argv []) : Protocol("PSI", argc, argv)
     SIZE_OF_NEEDED_BITS = NUM_OF_SPLITS * SPLIT_FIELD_SIZE_BITS;
     SIZE_OF_NEEDED_BYTES = SIZE_SPLIT_FIELD_BYTES*NUM_OF_SPLITS;
 
-    neededHashSize =  40 + 2*log2(numOfItems);//hash.getHashedMsgSize()
+    neededHashSize =  (40 + 2*log2(numOfItems) +7)/8;//hash.getHashedMsgSize()
 }
 
 Party::~Party()

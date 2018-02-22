@@ -17,6 +17,8 @@ PartyR::PartyR(int argc, char* argv[]): Party(argc, argv) {
     //open parties file
     ConfigFile cf(arguments["partiesFile"].c_str());
 
+
+    //prepare communication
     string receiver_ip, sender_ip;
     int receiver_port, sender_port;
 
@@ -89,6 +91,7 @@ PartyR::PartyR(int argc, char* argv[]): Party(argc, argv) {
 
     }
 
+    //rows for the current slice only
     tSplitRows.resize(NUM_OF_SPLITS);
 
     for(int s=0; s<NUM_OF_SPLITS;s++) {
@@ -118,6 +121,7 @@ PartyR::PartyR(int argc, char* argv[]): Party(argc, argv) {
     aesArr.resize(SIZE_OF_NEEDED_BITS);
 
 
+    //vectors used for interpolation
     interpolateTree.resize(numOfItems * 2 - 1);
     interpolatePoints.resize(numOfItems);
     interpolateTemp.resize(numOfItems * 2 - 1);
@@ -272,15 +276,18 @@ void PartyR::runOffline() {
 
 void PartyR::runOT(){
 
-    int elementSize = AES_LENGTH;
+    int elementSize = AES_LENGTH;//each element is 128 bit. Will be used as a key to AES
     int nOTs = SIZE_OF_NEEDED_BITS;
 
     OTBatchSInput *input = new OTExtensionRandomizedSInput(nOTs, elementSize);
 
     auto start = scapi_now();
+
+    //invoke the ot extension
     auto output = otSender->transfer(input);
     print_elapsed_ms(start, "Transfer for random");
 
+    //get the result for R0 and assign to T
     T = ((OTExtensionRandomizedSOutput *) output.get())->getR0Arr();
 
     if(FLAG_PRINT_TIMINGS) {
@@ -294,6 +301,7 @@ void PartyR::runOT(){
 
         }
     }
+    //get the result for R1 and assign to U
     U = ((OTExtensionRandomizedSOutput *) output.get())->getR1Arr();
 
     if(FLAG_PRINT_TIMINGS) {
@@ -311,6 +319,7 @@ void PartyR::runOT(){
 }
 void PartyR::prepareInterpolateValues(){
 
+    //prepare common data for interpolation of each slice
     prepareForInterpolate(inputs.data(), numOfItems-1, interpolateTree.data(), interpolatePoints.data(),numOfThreads,prime);
 
 }
@@ -325,11 +334,10 @@ void PartyR::buildPolinomial(int split){
     vector<byte> partialInputsAsBytesArr(numOfItems*16);
     setInputsToByteVector(0, numOfItems, partialInputsAsBytesArr);
 
-    //
-
 
     //go over each column and encrypt each input for each column.
-    //go over column by column and no row by row to reduce cache miss
+    //go over column by column and no row by row to reduce cache misses
+    //split the columns to threads
     int numbitsForEachThread = (SPLIT_FIELD_SIZE_BITS + numOfThreads - 1)/ numOfThreads;
     vector<thread> threadsAes(numOfThreads);
     for (int t=0; t<numOfThreads; t++) {
@@ -365,7 +373,9 @@ void PartyR::buildPolinomial(int split){
     }
 
 
-    //to avoid syncronization between threads work with batches of 8 that create the same bytes
+    //to avoid syncronization between threads work with batches of 8 that create the same bytes.
+    //Otherwise, if we do not use batches of 8, two threads update the same byte and syncronization is essential
+    //for correctness
     int numParallelized = (SPLIT_FIELD_SIZE_BITS+7)/8;
     int numBytesForEachThread;
     int currNumThreads = numOfThreads;
@@ -416,6 +426,7 @@ void PartyR::buildPolinomial(int split){
         if(FLAG_PRINT)
             cout<<endl;
 
+        //ToDo consider move tRows[i] and reallocate for the next slice
         tSplitRows[split][i] = tRows[i];
 
 
@@ -441,7 +452,7 @@ void PartyR::buildPolinomial(int split){
     //Poly::interpolateMersenne(polyP, inputs, yArr);
 
     //TODO  -- major buttleneck, break into thread (c++11 threads with affinity).
-    //TODO  -- A better underlying library should be used. Currently this takes too much time. All other optimizations will not be noticable at this stage.
+    //TODO  -- A better underlying library should be used. Currently this takes too much time.
     iterative_interpolate_zp(polyP, interpolateTemp.data(),  yArr.data(), interpolatePoints.data(), interpolateTree.data(), 2*numOfItems - 1, numOfThreads, prime);
     //test_interpolation_result_zp(polyP, inputs.data(), yArr.data(), numOfItems - 1);
     end = std::chrono::system_clock::now();
@@ -565,7 +576,7 @@ void PartyR::calcHashValues() {
             hash.update(tSplitRows[s][i], 0, SIZE_SPLIT_FIELD_BYTES);
         }
 
-        //TODO take only the required amout of bytes, consider using a single unsigned long in case only up to 64 bits are enough
+        //take only the required amout of bytes
         hash.hashFinal(tSha[i], 0);
 
         tSha[i].resize(neededHashSize);
@@ -617,7 +628,7 @@ void PartyR::calcOutput(){
 
 
 
-    //TODO improve threads performance. Note that the current map find is not thread safe. Consider different data structure with threads
+    //TODO improve through threads performance. Note that the current map find is not thread safe. Consider different data structure with threads
 
     for(int i=0; i<numOfItems; i++){
 
