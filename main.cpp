@@ -4,11 +4,13 @@
 #include "zp.h"
 
 int main(int argc, char* argv[]) {
+
     std::cout << "Run Protocol" << std::endl;
 
     CmdParser parser;
     auto parameters = parser.parseArguments("", argc, argv);
-    int partyNum = stoi(parameters["partyID"]);
+    int partyNum = stoi(parser.getValueByKey(parameters, "partyID"));
+
 
     if (partyNum == 0) {
         // create Party one with the previous created objects.
@@ -17,7 +19,8 @@ int main(int argc, char* argv[]) {
         auto all = scapi_now();
         pR.runProtocol();
         auto end = std::chrono::system_clock::now();
-        int elapsed_ms = std::chrono::duration_cast<std::chrono::milliseconds>(end - all).count();
+
+        long elapsed_ms = std::chrono::duration_cast<std::chrono::milliseconds>(end - all).count();
         cout << "********************* PartyR ********\nRunning took " << elapsed_ms << " milliseconds" << endl;
 
 
@@ -30,12 +33,14 @@ int main(int argc, char* argv[]) {
         PartyS pS(argc, argv);
         pS.runProtocol();
         auto end = std::chrono::system_clock::now();
-        int elapsed_ms = std::chrono::duration_cast<std::chrono::milliseconds>(end - all).count();
+
+        long elapsed_ms = std::chrono::duration_cast<std::chrono::milliseconds>(end - all).count();
         cout << "********************* PartyS ********\nRunning took " << elapsed_ms << " milliseconds" << endl;
     }
 
 
     return 0;
+
 
 
 
@@ -73,5 +78,5 @@ int main(int argc, char* argv[]) {
 ////    steady_clock::time_point end1 = steady_clock::now();
 ////    cout << "Building tree - total: " << duration_cast<milliseconds>(end1 - begin1).count() << " ms" << endl;
 
-
+    
 }

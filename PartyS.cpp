@@ -18,10 +18,11 @@ PartyS::PartyS(int argc, char* argv[] ) : Party(argc, argv){
 
 
     auto start = scapi_now();
-    auto groupNum = stoi(arguments["groupID"]);
+    auto groupNum = stoi(this->getParser().getValueByKey(arguments, "groupID"));
 
     //open parties file
-    ConfigFile cf(arguments["partiesFile"].c_str());
+    string partiesFilePath = this->getParser().getValueByKey(arguments, "partiesFile");
+    ConfigFile cf(partiesFilePath);
 
     string receiver_ip, sender_ip;
     int receiver_port, sender_port;
@@ -43,17 +44,6 @@ PartyS::PartyS(int argc, char* argv[] ) : Party(argc, argv){
     SocketPartyData senderParty(IpAddress::from_string(sender_ip), sender_port + 100*groupNum);
     otReceiver = new OTExtensionBristolReceiver(senderParty.getIpAddress().to_string(), senderParty.getPort(), true, channel);
 
-//    SocketPartyData me(IpAddress::from_string(arguments["myIP"]), stoi(arguments["myPort"])+100*groupNum);
-//    SocketPartyData other(IpAddress::from_string(arguments["otherIP"]), stoi(arguments["otherPort"])+100*groupNum);
-//
-//    channel = make_shared<CommPartyTCPSynced>(io_service, me, other);
-//    boost::thread t(boost::bind(&boost::asio::io_service::run, &io_service));
-//
-//    // create the OT receiver.
-//    start = scapi_now();
-//    SocketPartyData senderParty(IpAddress::from_string(arguments["otherIP"]), 7766+100*groupNum);
-//    otReceiver = new OTExtensionBristolReceiver(senderParty.getIpAddress().to_string(), senderParty.getPort(), true, channel);
-//
     // connect to party one
     channel->join(500, 5000);
 
@@ -65,20 +55,6 @@ PartyS::PartyS(int argc, char* argv[] ) : Party(argc, argv){
     subTaskNames.push_back("SendHashValues");
     timer = new Measurement(*this, subTaskNames);
 
-//
-//    GenPrime(prime, SPLIT_FIELD_SIZE_BITS);
-//
-//    ZZ_p::init(ZZ(prime));
-//
-//    cout<<"prime is" <<prime<<endl;
-
-    //ZZ_p::init(ZZ(2305843009213693951));
-
-    //ZZ_p::init(ZZ(1739458288095207497));
-
-//    string str("170141183460469231731687303715884105727");
-//    ZZ number(NTL::INIT_VAL, str.c_str());
-//    ZZ_p::init(ZZ(number));
 
     //use
     byte primeBytes[SIZE_SPLIT_FIELD_BYTES];
@@ -92,13 +68,13 @@ PartyS::PartyS(int argc, char* argv[] ) : Party(argc, argv){
 
 
 
+
     if(FLAG_PRINT)
         cout<<"prime" << prime;
 
 
 
     //field = new TemplateField<ZpMersenneLongElement>(0);
-
     qRows.resize(NUM_OF_SPLITS);
     zRows.resize(NUM_OF_SPLITS);
 
@@ -125,16 +101,10 @@ PartyS::PartyS(int argc, char* argv[] ) : Party(argc, argv){
 
     }
 
-
     sElements.resize(SIZE_OF_NEEDED_BYTES);
-
-
     evalTree.resize(numOfItems * 2 - 1);
     evalRemainder.resize(numOfItems * 2 - 1);
-
-
     getInput();
-
 }
 
 void PartyS::getInput()  {
